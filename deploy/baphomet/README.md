@@ -3,8 +3,12 @@
 Baphomet es el host Ubuntu que filtra y registra la salida del NVR. La tabla
 `inet opennvr` la instala `opennvr-nft.service`; compose no modifica nftables.
 `nvr-watch` observa disponibilidad y configuración, mientras que `ulogd` y
-`egress-watch` registran y resumen el tráfico. El perfil `dns` añade un
-dnsmasq de lista permitida.
+`egress-watch` registran y resumen el tráfico. dnsmasq responde el DNS del
+NVR con una lista permitida y ntfy envía los avisos.
+
+> **podman-compose 1.0.6** (Ubuntu 24.04) no admite `--profile` e ignora
+> `profiles:`, así que este compose no los usa: `up -d` levanta siempre los
+> cinco servicios.
 
 > **Antes de cambiar la puerta de enlace del NVR, Baphomet no puede observar
 > su tráfico.** El NVR y el router están en la misma LAN y el tráfico va
@@ -92,22 +96,19 @@ se hace por VPN.
 
 5. Descargar las imágenes y levantar los tres servicios principales:
 
+   Los secretos `nvr_pass` y `ntfy_token` del paso 4 **deben existir antes**:
+   si falta alguno, `podman run` de `nvr-watch` o `egress-watch` falla y
+   podman-compose sigue con los demás sin avisar
+   (`sudo podman secret ls`).
+
    ```bash
    sudo podman-compose pull
    sudo podman-compose up -d
-   sudo podman-compose ps
+   sudo podman ps -a --filter label=io.podman.compose.project=baphomet
    ```
 
-   Para activar también el DNS de lista permitida, revisar primero
-   `dnsmasq/allow.conf` y ejecutar:
-
-   ```bash
-   sudo podman-compose --profile dns up -d
-   ```
-
-   Con el perfil desactivado, las consultas DNS desviadas por nft fallan. Con
-   el perfil activo, cualquier nombre no incluido en `allow.conf` devuelve
-   NXDOMAIN. Resolver un nombre no lo autoriza por sí solo: su IP, protocolo y
+   dnsmasq responde a cualquier nombre que no esté en `dnsmasq/allow.conf`
+   con NXDOMAIN. Resolver un nombre no lo autoriza por sí solo: su IP, protocolo y
    puerto también deben figurar en `nvr_allow4`.
 
 6. Arranque tras un reinicio o corte de luz. Con Podman, `restart:
@@ -118,7 +119,7 @@ se hace por VPN.
    sudo systemctl enable --now podman-restart.service
    ```
 
-## ntfy local (perfil `ntfy`)
+## ntfy local
 
 Si no hay otro servidor ntfy, este compose levanta uno en
 `http://192.168.0.8:2586`, sin acceso anónimo (`deny-all`) y publicado solo en
@@ -127,7 +128,7 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
 `ntfy.tudominio.com`. Para no dejar dos definiciones, se puede borrar:
 `podman rm ntfy` (sin `sudo`; no tenía datos).
 
-1. En `.env`: `NTFY_URL=http://ntfy`, `NTFY_BASE_URL=http://192.168.0.8:2586`,
+1. En `.env`: `NTFY_URL=http://ntfy:2586`, `NTFY_BASE_URL=http://192.168.0.8:2586`,
    `NTFY_BIND=192.168.0.8` y `NTFY_PORT=2586`. En Baphomet el 8080 lo ocupa
    otro contenedor (`gta-v-map`). Antes de elegir un puerto, comprobar que
    está libre con `ss -ltn 'sport = :2586'`.
@@ -136,7 +137,7 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
    usuario de servicio con permiso solo de escritura en el tema:
 
    ```bash
-   sudo podman-compose --profile ntfy up -d ntfy
+   sudo podman-compose up -d ntfy
    sudo podman exec -it opennvr-ntfy ntfy user add --role=admin admin
    sudo podman exec -it opennvr-ntfy ntfy user add opennvr
    sudo podman exec opennvr-ntfy ntfy access opennvr opennvr write-only
@@ -151,7 +152,7 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
    read -rsp 'Token ntfy: ' NTFY_SECRET; echo
    printf '%s' "$NTFY_SECRET" | sudo podman secret create ntfy_token -
    unset NTFY_SECRET
-   sudo podman-compose --profile ntfy up -d --force-recreate nvr-watch egress-watch
+   sudo podman-compose up -d --force-recreate nvr-watch egress-watch
    ```
 
 4. En la app ntfy del móvil: servidor `http://192.168.0.8:2586` (solo desde
@@ -162,14 +163,14 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
    ```bash
    sudo podman exec opennvr-ntfy ntfy publish \
      --token "$(sudo podman secret inspect --showsecret ntfy_token --format '{{.SecretData}}')" \
-     http://127.0.0.1/opennvr "prueba open-nvr"
+     http://127.0.0.1:2586/opennvr "prueba open-nvr"
    ```
 
    Si `--showsecret` no está disponible en Podman 4.9, publicar desde la app
    con el usuario `admin`.
 
 Para levantar todo de una vez en adelante:
-`sudo podman-compose --profile ntfy --profile dns up -d`.
+`sudo podman-compose up -d`.
 
 ## Paso separado: cambiar la puerta de enlace del NVR
 
@@ -179,7 +180,7 @@ tabla nft y los contenedores están sanos.
 El NVR usa **DHCP** (verificado el 2026-10-27). Si solo se cambiara la puerta
 de enlace, el router la devolvería a `192.168.0.1` al renovar la concesión.
 Por eso el cambio fija la IP actual (`192.168.0.227`), desactiva DHCP y pone
-la puerta de enlace en **`192.168.0.8`**. Con el perfil `dns` activo, también
+la puerta de enlace en **`192.168.0.8`**. También
 el DNS en `192.168.0.8`. Conviene reservar además `192.168.0.227` en el DHCP
 del router.
 
@@ -276,7 +277,7 @@ El orden evita dejar al NVR enrutado por un host sin filtro:
 2. Solo entonces detener los contenedores:
 
    ```bash
-   sudo podman-compose --profile dns down
+   sudo podman-compose down
    ```
 
 3. Desactivar la unidad y borrar únicamente la tabla propia:
