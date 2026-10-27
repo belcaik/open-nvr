@@ -123,7 +123,7 @@ services:
     image: docker.io/binwiederhier/ntfy:v2.11.0
     command: serve
     environment:
-      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://192.168.0.8:8080}
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://192.168.0.8:2586}
       NTFY_LISTEN_HTTP: ":80"
       NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
       NTFY_CACHE_DURATION: 72h
@@ -131,7 +131,7 @@ services:
       NTFY_AUTH_DEFAULT_ACCESS: deny-all
       NTFY_BEHIND_PROXY: "false"
     ports:
-      - "${NTFY_BIND:-192.168.0.8}:8080:80"
+      - "${NTFY_BIND:-192.168.0.8}:${NTFY_PORT:-2586}:80"
     volumes:
       - ntfy_cache:/var/cache/ntfy
       - ntfy_data:/var/lib/ntfy
