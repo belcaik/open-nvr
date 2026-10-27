@@ -29,10 +29,11 @@ sus componentes figuran como contexto, separadas de los hallazgos.
 | S06 | **Servidor web Boa 0.94.14rc21**, sin mantenimiento desde 2005 | Media (por exposición, no por un fallo comprobado) | Banner HTTP |
 | S07 | **Rutas a servicios en la nube** en la UI web: `erp.zwcloud.wang:8090` (WASM y paquetes), `utilerp.p6sai.com:8090` (actualización cloud), `139.9.6.140:8090` (comentada). El NVR declara además DNS `1.1.1.1`/`8.8.8.8` y NTP `pool.ntp.org` | Media | `docs/api-reference.md` §7, `captures/api/Network_Interfaces.xml` |
 | S08 | **Zona horaria `CST-08:00`** (China) y última sincronización NTP fallida (`SynchronizeNTPNowStatus=fail`). Las marcas de tiempo de grabaciones y logs no coinciden con la hora local | Baja | `captures/api/System_NTP.xml` |
-| S09 | **Grabación detenida y disco sin formatear** (`RecordMode=stop`, `DiskFormatStatus=unformatted`). El NVR no graba nada | Media (funcional) | `captures/api/Disk.xml`, `Record.xml` |
+| S09 | ~~Grabación detenida y disco sin formatear~~ **Resuelto el 2026-10-27**: disco formateado y grabación continua confirmada (T40). Los campos `RecordMode=stop` y `DiskFormatStatus=unformatted` no reflejan el estado real | Resuelto | `captures/T40-*` |
 | S10 | **Puertos sin identificar**: 8885/tcp y 9000/tcp aceptan conexión pero no responden a HTTP ni envían banner. 6060 y 6066 son el protocolo privado P6S | Baja (superficie no auditada) | `test-log.md` T01–T02 |
 | S11 | **La UI guarda `Base64(usuario:contraseña)` en la cookie `userInfo`** y, en modo P2P, pasa las credenciales en la URL | Baja (afecta al navegador del cliente) | `docs/api-reference.md` §8 |
 | S12 | **Detección de movimiento desactivada** en el canal 1: no se generan eventos | Baja (funcional) | `captures/api/Pictures_1_Motion.xml` |
+| S14 | **Activador oculto de telnet en la UI web**: 5 clics en la etiqueta "MAC" de la pantalla de red en menos de 2 s ejecutan `openTelnet()`, que envía `PUT /System/DeviceCustomFunction` con el cuerpo `telnetd_enable` (`nvr/js/network/ipAddress.js`). **No se ejecutó.** El puerto 23 está cerrado (T01). Cualquiera con la contraseña de administrador podría abrir una consola telnet en el NVR. `nvr-watch` vigila 23/tcp y 2323/tcp | Alta (verificado en el código, no en el equipo) | `captures/web/nvr/js/network/ipAddress.js` |
 | S13 | **Riesgo en la red de gestión**: mientras Baphomet estuvo apagado, otro equipo con una clave SSH distinta respondió en 192.168.0.8. SSH lo detectó y no se envió nada. Conviene reservar esa IP en el DHCP del router | Media | Sesión del 2026-10-26 |
 
 ### Lo que está bien
@@ -86,8 +87,8 @@ han aplicado todavía.
 5. ⚙ Zona horaria local y NTP hacia Baphomet o un servidor permitido (S08).
 6. Reservar en el DHCP del router las IP de Baphomet (192.168.0.8) y del NVR
    (S13).
-7. ⚙ Formatear el disco y activar la grabación si se quiere grabar en el NVR
-   (S09). **Requiere tu confirmación expresa**: formatear borra el contenido
-   del disco aunque ahora figure sin formato.
+7. Hecho: disco formateado y grabación activa (S09).
+9. No usar el activador de telnet (S14). Si el puerto 23 llega a abrirse,
+   tratarlo como un incidente: cambiar la contraseña y reiniciar el NVR.
 8. Pendiente: identificar 8885 y 9000 con captura pasiva del cliente oficial
    (S10).

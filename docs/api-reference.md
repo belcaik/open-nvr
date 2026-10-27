@@ -29,6 +29,7 @@ Clases: **READ** = GET sin efecto lateral aparente; **WRITE-REVERSIBLE** = cambi
 | `GET /System/DeviceInfo` | — | `ProductType`, `DeviceTypeName`, `DeviceName`, `SerialNum`, `SoftWareVersion`, `VideoInputChannels`, `AudioChannels`, `TwoWayAudio`, `AlarmInputChannels`, `AlarmOutputChannels` | READ | `web/nvr/js/common.js:470-510` |
 | `GET /System/DeviceStatus/{ch}` | — | `MainStreamVideoBitrate`, `FirstSubStreamVideoBitrate`, `SecondSubStreamVideoBitrate` | READ | `web/nvr/js/common.js:522-540` |
 | `GET /System/DeviceCustomFunction` | — | `DeviceCustomFunction/NetWork/Lan/DHCPEnable` | READ | `web/nvr/js/network/ipAddress.js:47-61` |
+| `PUT /System/DeviceCustomFunction` | texto plano `telnetd_enable` | estado HTTP | **DANGEROUS**: activa telnetd. Lo dispara un activador oculto (5 clics en la etiqueta MAC). Añadido en la revisión manual: el análisis automático lo clasificó solo como GET | `web/nvr/js/network/ipAddress.js:22-63` |
 | `GET /System/PTZCap` | — | primer `Channel/Extend/Support`, `Light/Support`, `Wipe/Support` | READ | `web/js/pages/preview.js:3139-3168` |
 | `GET /System/LightCap/{ch}` | — | `LightCapability/LightMode` y capacidades/rangos de modos color, inteligente, IR variable, blanco variable, IR normal y blanco normal (`Support`, `Min/Max`, `OpenLight`, `CloseLight`, etc.) | READ | `web/nvr/js/image/lighting.js:1641-2041` |
 | `GET /Protocol.html` | — | texto entre `Name0=`, `Type0=` y `Name1=`; la UI añade además protocolo `6 = ONVIF` | READ | `web/nvr/js/channelManagement/videoManagement.js:267-283` |
