@@ -1,0 +1,25 @@
+[Unit]
+Description=open-nvr: tabla nftables inet opennvr (filtrado y registro del NVR)
+Documentation=file:///opt/open-nvr/deploy/baphomet/README.md
+# Mismo orden que nftables.service de Ubuntu: antes de levantar la red.
+DefaultDependencies=no
+Wants=network-pre.target
+Before=network-pre.target shutdown.target
+Conflicts=shutdown.target
+# Si nftables.service está activo y hace `flush ruleset`, se recarga después.
+After=nftables.service
+PartOf=nftables.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/sbin/nft -c -f /etc/opennvr/opennvr.nft
+ExecStart=/usr/sbin/nft -f /etc/opennvr/opennvr.nft
+ExecReload=/usr/sbin/nft -f /etc/opennvr/opennvr.nft
+# Sin ExecStop a propósito: parar la unidad no debe borrar la tabla. Con
+# ip_forward=1 y el NVR usando Baphomet como puerta de enlace, borrarla dejaría
+# el tráfico del NVR reenviado sin filtro. La tabla solo se borra en el
+# procedimiento de vuelta atrás, después de devolver el NVR al router.
+
+[Install]
+WantedBy=sysinit.target

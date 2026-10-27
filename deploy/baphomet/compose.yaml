@@ -1,0 +1,135 @@
+services:
+  nvr-watch:
+    container_name: opennvr-nvr-watch
+    build:
+      context: ../../services
+      dockerfile: nvr-watch/Dockerfile
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      NVR_PASS_FILE: /run/secrets/nvr_pass
+      NTFY_TOKEN_FILE: /run/secrets/ntfy_token
+    secrets:
+      - nvr_pass
+      - ntfy_token
+    volumes:
+      - nvr_watch_data:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "assert b'nvrwatch' in open('/proc/1/cmdline','rb').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  ulogd:
+    container_name: opennvr-ulogd
+    build:
+      context: ulogd
+    network_mode: host
+    user: "0:0"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ulogd_logs:/var/log/ulogd
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /run:size=4m,mode=755
+      - /tmp:size=4m,mode=1777
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$(cat /proc/1/comm)\" = ulogd"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  egress-watch:
+    container_name: opennvr-egress-watch
+    build:
+      context: ../../services
+      dockerfile: egress-watch/Dockerfile
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      ULOG_FILES: /var/log/ulogd/nvr-fwd.json,/var/log/ulogd/nvr-drop.json
+      DNSMASQ_LOG: /var/log/dnsmasq/queries.log
+      NTFY_TOKEN_FILE: /run/secrets/ntfy_token
+    secrets:
+      - ntfy_token
+    volumes:
+      - egress_watch_data:/data
+      - ulogd_logs:/var/log/ulogd:ro
+      - dnsmasq_logs:/var/log/dnsmasq:ro
+    depends_on:
+      ulogd:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "assert b'egresswatch' in open('/proc/1/cmdline','rb').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dnsmasq:
+    profiles:
+      - dns
+    container_name: opennvr-dnsmasq
+    build:
+      context: dnsmasq
+    network_mode: host
+    user: "0:0"
+    command:
+      - --listen-address=${DNS_BIND:-192.168.0.8}
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./dnsmasq/opennvr.conf:/etc/dnsmasq.d/opennvr.conf:ro
+      - ./dnsmasq/allow.conf:/etc/dnsmasq.d/allow.conf:ro
+      - dnsmasq_logs:/var/log/dnsmasq
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /run:size=4m,mode=755
+      - /tmp:size=4m,mode=1777
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$(cat /proc/1/comm)\" = dnsmasq"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+secrets:
+  nvr_pass:
+    external: true
+  ntfy_token:
+    external: true
+
+volumes:
+  nvr_watch_data:
+  egress_watch_data:
+  ulogd_logs:
+  dnsmasq_logs:

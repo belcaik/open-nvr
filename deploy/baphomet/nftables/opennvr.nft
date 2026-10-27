@@ -1,0 +1,127 @@
+#!/usr/sbin/nft -f
+#
+# open-nvr: filtrado y registro del tráfico del NVR enrutado por Baphomet.
+#
+# Solo toca su propia tabla `inet opennvr`. No hace `flush ruleset` y no
+# modifica las tablas de podman/netavark, ufw ni iptables-nft.
+#
+# Idempotente: las tres primeras líneas crean la tabla si no existe, la borran
+# y la vuelven a definir completa. `nft -f` aplica el archivo en una sola
+# transacción, así que no hay un instante sin reglas al recargar.
+#
+# Solo tiene efecto cuando el NVR usa 192.168.0.8 como puerta de enlace. Antes
+# de ese cambio el tráfico del NVR va directo al router y no pasa por aquí.
+#
+# Aplicación: opennvr-nft.service (ver deploy/baphomet/README.md).
+
+define NVR4 = 192.168.0.227
+define NVR_MAC = 5a:5a:02:5b:e4:18
+define BAPHOMET4 = 192.168.0.8
+
+# Redes de contenedores podman (10.88.0.0/16 es la red por defecto;
+# podman-compose crea redes en 10.89.0.0/16). Pueden iniciar conexiones hacia
+# el NVR sin pasar por la lista permitida (por ejemplo, un go2rtc futuro).
+define CONTAINER_NETS = { 10.88.0.0/16, 10.89.0.0/16 }
+
+table inet opennvr
+delete table inet opennvr
+
+table inet opennvr {
+
+	# Destinos permitidos para conexiones iniciadas por el NVR:
+	# IPv4 . protocolo . puerto. Vacío por defecto: todo se bloquea y se
+	# registra. Ejemplo (descomentar y recargar el servicio):
+	#   elements = { 203.0.113.10 . tcp . 8090, 203.0.113.20 . udp . 123 }
+	set nvr_allow4 {
+		type ipv4_addr . inet_proto . inet_service
+	}
+
+	# Direcciones IPv6 globales del NVR, si la verificación encuentra alguna.
+	# Bloquea el tráfico hacia ellas que se enrute por Baphomet.
+	set nvr_addr6 {
+		type ipv6_addr
+	}
+
+	# Contadores con nombre: `nft list counters table inet opennvr`.
+	counter nvr_from_seen { }
+	counter nvr_to_seen { }
+	counter nvr_out_allowed { }
+	counter nvr_out_dropped { }
+	counter nvr_in_allowed { }
+	counter nvr_in_dropped { }
+	counter nvr_containers { }
+	counter nvr_v6_dropped { }
+	counter nvr_spoof_dropped { }
+	counter nvr_to_host { }
+	counter nvr_dns_redirected { }
+	counter redirects_to_nvr { }
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+
+		# IPv6 del NVR: nunca se reenvía.
+		ether saddr $NVR_MAC meta nfproto ipv6 counter name nvr_v6_dropped log prefix "opennvr-drop-v6 " group 2 snaplen 128 drop
+		ip6 daddr @nvr_addr6 counter name nvr_v6_dropped log prefix "opennvr-drop-v6 " group 2 snaplen 128 drop
+
+		ip saddr $NVR4 jump from_nvr
+		ip daddr $NVR4 jump to_nvr
+
+		# MAC del NVR con otra IPv4 (cambio de IP, DHCP): se bloquea y se avisa.
+		ether saddr $NVR_MAC counter name nvr_spoof_dropped log prefix "opennvr-drop-spoof " group 2 snaplen 128 drop
+	}
+
+	# Paquetes con origen el NVR. Toda rama termina en accept o drop.
+	chain from_nvr {
+		counter name nvr_from_seen
+
+		# Respuestas del NVR a conexiones iniciadas por contenedores locales.
+		ct direction reply ip daddr $CONTAINER_NETS counter name nvr_containers accept
+
+		ip daddr . meta l4proto . th dport @nvr_allow4 counter name nvr_out_allowed log prefix "opennvr-fwd-out " group 1 snaplen 128 accept
+
+		counter name nvr_out_dropped log prefix "opennvr-drop-out " group 2 snaplen 128 drop
+	}
+
+	# Paquetes con destino el NVR que atraviesan Baphomet.
+	chain to_nvr {
+		counter name nvr_to_seen
+
+		# Respuestas a conexiones permitidas del NVR (ya des-NATeadas).
+		ct direction reply ct state established counter name nvr_in_allowed log prefix "opennvr-fwd-in " group 1 snaplen 128 accept
+		ct state related counter name nvr_in_allowed log prefix "opennvr-fwd-in " group 1 snaplen 128 accept
+
+		# Conexiones de contenedores locales hacia el NVR.
+		ip saddr $CONTAINER_NETS ct direction original counter name nvr_containers accept
+
+		counter name nvr_in_dropped log prefix "opennvr-drop-in " group 2 snaplen 128 drop
+	}
+
+	# Tráfico del NVR hacia el propio Baphomet (DNS, NTP): solo se cuenta.
+	chain input {
+		type filter hook input priority filter; policy accept;
+		ip saddr $NVR4 counter name nvr_to_host
+	}
+
+	# Segunda barrera contra ICMP redirect: si el sysctl falla, el redirect
+	# se descarta aquí y el contador lo delata (debe quedarse en 0).
+	chain output {
+		type filter hook output priority filter; policy accept;
+		ip daddr $NVR4 icmp type redirect counter name redirects_to_nvr drop
+	}
+
+	# El DNS del NVR (configurado 1.1.1.1 / 8.8.8.8) se desvía al dnsmasq de
+	# Baphomet. Si dnsmasq no está desplegado, la consulta falla, que es
+	# equivalente al bloqueo.
+	chain prerouting_nat {
+		type nat hook prerouting priority dstnat; policy accept;
+		ip saddr $NVR4 ip daddr != $BAPHOMET4 meta l4proto { tcp, udp } th dport 53 counter name nvr_dns_redirected dnat ip to $BAPHOMET4
+	}
+
+	# Masquerade solo para lo permitido. Sin él, el router respondería
+	# directamente al NVR (está en su misma red) y la vuelta no pasaría por
+	# Baphomet: conntrack vería medio flujo y se perdería visibilidad.
+	chain postrouting_nat {
+		type nat hook postrouting priority srcnat; policy accept;
+		ip saddr $NVR4 ip daddr . meta l4proto . th dport @nvr_allow4 masquerade
+	}
+}
