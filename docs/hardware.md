@@ -13,7 +13,7 @@ versiona. Leyenda al final.
 | NVR, SoC | Ingenic A1 (ChipID `INGENICA1…`) | ✅ |
 | NVR, firmware | `6.9.2-20251226` (hardware y software). UI web `25.08.13.12613` | ✅ |
 | NVR, capacidad | 10 canales de vídeo, 10 de audio, `TwoWayAudio=true`, 1 salida de monitor, sin entradas ni salidas de alarma | ✅ |
-| Disco | Seagate ST3500418AS, 500 GB, **sin formatear** | ✅ `GET /Disk` |
+| Disco | Seagate ST3500418AS, 500 GB, formateado el 2026-10-27; grabación continua (24/7, flujo principal) | ✅ `GET /Disk`, `GetRecordInfoByDay` |
 | Cámaras registradas | **1** (canal 1). Canales 2–10 vacíos | ✅ `GET /System/FrontConnectDevicetList` |
 | Cámara 1, modelo | `W3CA-52PHM-S/W/BT`, firmware `1.8.1-20260112` | ✅ |
 | Cámara 1, funciones | Pan/tilt motorizado, zoom (hasta al menos 6.8X), presets, luz IR + blanca ("inteligente"), micrófono (G.711U) | ✅ Probado (test-log T20–T23) |

@@ -80,3 +80,12 @@ antes y después (`captures/ptz/`).
   envía al equipo ninguna estructura binaria sin documentar.
 - Las grabaciones requieren primero formatear el disco y activar la
   grabación. Formatear necesita tu confirmación expresa.
+
+## Etapa 2b: grabación y herramientas (2026-10-27)
+
+| ID | Prueba | Resultado | Evidencia |
+|---|---|---|---|
+| T40 | Formatear el disco con `PUT /Record/Format/Call` (cuerpo vacío, como la UI). **Autorizado expresamente** por el propietario | ✅ `statusCode 0`. El disco pasa por `diskexception`, luego `idle` y luego `writting`. Capacidad libre: 473 240 MB | `captures/T40-format.txt`, `api/Disk-before-format.xml` |
+| T41 | ¿Graba? `GetRecordInfoByDay` del canal 1 | ✅ Tramo `general` desde las 11:18:33 (hora del NVR) que sigue creciendo. La programación ya era 24/7 (`TimeBlock_*` todo a `1`). `RecordMode=stop` y `DiskFormatStatus=unformatted` no cambian: no reflejan el estado real | `captures/T40-recordinfo-day.xml` |
+| T42 | Captura de la VM sin root (`filter-dump` de QEMU) | ✅ Con la NIC e1000e. ❌ Con virtio y vhost-net (`Vhost is not supported`): en ese caso, `tcpdump` en `vnetN` con sudo | `tools/vm_capture.sh` |
+| T43 | `tools/nvr_gateway.py plan` | ✅ Solo cambia la puerta de enlace, el DNS y DHCP. No se ha aplicado | — |
