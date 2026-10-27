@@ -16,3 +16,6 @@ services:
   dnsmasq:
     build:
       context: dnsmasq
+  chrony:
+    build:
+      context: chrony

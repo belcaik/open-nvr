@@ -147,6 +147,30 @@ services:
       retries: 3
       start_period: 10s
 
+  # Servidor NTP para el NVR: sirve la hora de Baphomet en 192.168.0.8:123
+  # sin dar al NVR salida a Internet.
+  chrony:
+    container_name: opennvr-chrony
+    image: ghcr.io/belcaik/open-nvr-chrony:${OPENNVR_TAG:-latest}
+    network_mode: host
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /run:size=4m,mode=755
+      - /var/lib/chrony:size=4m,mode=755
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$(cat /proc/1/comm)\" = chronyd"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 secrets:
   nvr_pass:
     external: true
