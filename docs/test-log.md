@@ -97,3 +97,17 @@ antes y después (`captures/ptz/`).
 | T03b | `FrontConnectDevicetList` con las 4 cámaras | ✅ Cuatro `W3CA-52PHM-S/W/BT` con firmware 1.8.1-20260112 en los canales 1–4. Todas con `weak password` y TUTK habilitado | `captures/api/FrontConnect-4cams.xml` |
 | T03c | Mapeo RTSP `/live/{0..5}/SUB` | ✅ `/live/N` = canal N para N = 1–4. `/live/0` es alias del canal 1. `/live/5` no devuelve flujo | `captures/ch-montage.jpg` |
 | T03d | `FrontDeviceDetectList` | Ve una cámara (MAC `…:94:35`, la del canal 3) en `192.168.1.13`, mientras que la lista registrada la tiene en `192.168.0.89`. Hipótesis: el segmento PoE usa direcciones 192.168.1.x | `captures/api/` |
+
+## Etapa 5: captura del cliente EasyVideo (2026-10-27)
+
+| ID | Prueba | Resultado | Evidencia |
+|---|---|---|---|
+| T50 | Red de la VM win10 | Sin red: Windows enviaba `DHCPDISCOVER` sin respuesta. Causa: `inet filter` del host (input y forward con `policy drop`) más la cadena `FORWARD` de Docker con `policy drop`. Se arregló con reglas de `virbr0` y `DOCKER-USER`. La NIC pasó de virtio (sin driver en Win10) a e1000e | `captures/vm/win10-diag-dhcp2.pcap` |
+| T51 | Captura de la sesión completa de EasyVideo (873 s, 358 MB) con `filter-dump` | ✅ | `captures/vm/win10-easyvideo.pcap`, `*-summary.txt` |
+| T52 | ¿Qué usa HTTP? | ✅ La UI web completa más PTZ, luz, OSD, imagen, hora y NTP. PTZ = `PUT /PTZ/{ch}/{cmd}`; comandos nuevos: `AutoLeftRight`, `FocusNear`, `ApertureBigger/Smaller`, `RainBrush` | `captures/vm/http-requests.txt` |
+| T53 | Protocolo P6S en 6060 | ✅ Cabecera de 36 bytes más XML GB2312. Login reto-respuesta, latido cada 3 s, `RealStream*` y `VoiceStream*` | `captures/vm/p6s-commands.txt`, [p6s-protocol.md](p6s-protocol.md) |
+| T54 | Medios P6S en 6066 | ✅ Cabecera de 32 bytes más extensión y carga (longitudes BE). Audio de 320 B μ-law (40 ms) en ambos sentidos. Validado en 604 + 680 tramas | [p6s-protocol.md](p6s-protocol.md) |
+| T55 | Fórmula del hash `UserLogin` (cálculo local con la contraseña conocida) | ❌ No es MD5 simple de contraseña, reto y usuario. Pendiente | — |
+| T56 | Salida a Internet del cliente | `utilerp.p6sai.com:8090` (HTTP sin cifrar, consulta de firmware) y un bucket en Huawei Cloud. Sin P2P | [p6s-protocol.md](p6s-protocol.md) |
+| T57 | Cambios hechos por el propietario desde EasyVideo | Zona horaria UTC−3 (`CST--3:00:00`), NTP `0.cl.pool.ntp.org`, formato de fecha DDMMAAAA, acción de PTZ watch `preset`. Canal 1 MAIN configurado a 2880×1616, pero **RTSP sigue en 2304×1296** (el cambio no se aplicó). El NTP sigue en `fail` | `captures/api/after-easyvideo/` |
+| T58 | Reproducción de grabaciones | No apareció en la captura: solo `GetRecordInfoByMonth`, sin flujo de reproducción | — |
