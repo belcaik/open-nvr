@@ -92,36 +92,92 @@ se hace por VPN.
    NXDOMAIN. Resolver un nombre no lo autoriza por sí solo: su IP, protocolo y
    puerto también deben figurar en `nvr_allow4`.
 
+6. Arranque tras un reinicio o corte de luz. Con Podman, `restart:
+   unless-stopped` solo se aplica al arrancar el host si
+   `podman-restart.service` está habilitado (en rootful, a nivel de sistema):
+
+   ```bash
+   sudo systemctl enable --now podman-restart.service
+   ```
+
+## ntfy local (perfil `ntfy`)
+
+Si no hay otro servidor ntfy, este compose levanta uno en
+`http://192.168.0.8:8080`, sin acceso anónimo (`deny-all`) y publicado solo en
+la IP de la LAN. Sustituye al contenedor rootless `ntfy` de `~/pod/ntfy`,
+que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
+`ntfy.tudominio.com`. Para no dejar dos definiciones, se puede borrar:
+`podman rm ntfy` (sin `sudo`; no tenía datos).
+
+1. En `.env`: `NTFY_URL=http://ntfy`, `NTFY_BASE_URL=http://192.168.0.8:8080`
+   y `NTFY_BIND=192.168.0.8`. Si el puerto 8080 ya está ocupado, cambiar
+   `NTFY_BIND` o el puerto publicado en `compose.yaml`.
+
+2. Levantar ntfy y crear un usuario administrador (para la app móvil) y un
+   usuario de servicio con permiso solo de escritura en el tema:
+
+   ```bash
+   sudo podman-compose --profile ntfy up -d ntfy
+   sudo podman exec -it opennvr-ntfy ntfy user add --role=admin admin
+   sudo podman exec -it opennvr-ntfy ntfy user add opennvr
+   sudo podman exec opennvr-ntfy ntfy access opennvr opennvr write-only
+   sudo podman exec opennvr-ntfy ntfy token add opennvr   # copiar el tk_…
+   ```
+
+3. Guardar el token como secreto (sustituye al vacío del paso 4) y recrear
+   los servicios que lo leen:
+
+   ```bash
+   sudo podman secret rm ntfy_token
+   read -rsp 'Token ntfy: ' NTFY_SECRET; echo
+   printf '%s' "$NTFY_SECRET" | sudo podman secret create ntfy_token -
+   unset NTFY_SECRET
+   sudo podman-compose --profile ntfy up -d --force-recreate nvr-watch egress-watch
+   ```
+
+4. En la app ntfy del móvil: servidor `http://192.168.0.8:8080` (solo desde
+   la LAN o por VPN), usuario `admin` y suscripción al tema `opennvr`.
+
+5. Prueba de extremo a extremo:
+
+   ```bash
+   sudo podman exec opennvr-ntfy ntfy publish \
+     --token "$(sudo podman secret inspect --showsecret ntfy_token --format '{{.SecretData}}')" \
+     http://127.0.0.1/opennvr "prueba open-nvr"
+   ```
+
+   Si `--showsecret` no está disponible en Podman 4.9, publicar desde la app
+   con el usuario `admin`.
+
+Para levantar todo de una vez en adelante:
+`sudo podman-compose --profile ntfy --profile dns up -d --build`.
+
 ## Paso separado: cambiar la puerta de enlace del NVR
 
 Este paso es el que coloca a Baphomet en el camino. Confirmar antes que la
 tabla nft y los contenedores están sanos.
 
-Mantener la IP estática del NVR en **`192.168.0.227`** y cambiar solamente su
-puerta de enlace a **`192.168.0.8`**. Hay dos vías:
+El NVR usa **DHCP** (verificado el 2026-10-27). Si solo se cambiara la puerta
+de enlace, el router la devolvería a `192.168.0.1` al renovar la concesión.
+Por eso el cambio fija la IP actual (`192.168.0.227`), desactiva DHCP y pone
+la puerta de enlace en **`192.168.0.8`**. Con el perfil `dns` activo, también
+el DNS en `192.168.0.8`. Conviene reservar además `192.168.0.227` en el DHCP
+del router.
 
-- En la UI web del NVR, abrir la configuración de red, conservar IP, máscara
-  y DNS, establecer Gateway en `192.168.0.8`, guardar y volver a consultar la
-  pantalla.
-- Por la API propietaria: guardar primero `GET /Network/Interfaces`, editar
-  una copia del XML cambiando solo el Gateway y enviar esa copia mediante
-  `PUT /Network/Interfaces`. No reutilizar un XML de ejemplo: deben
-  conservarse los campos y la versión que devuelve el equipo.
+`tools/nvr_gateway.py` lo hace igual que la pantalla de red de la UI: lee el
+XML de `GET /Network/Interfaces`, cambia esos nodos, lo envía con `PUT` y
+guarda una copia en `captures/network/` para volver atrás. Se ejecuta desde
+un equipo de la LAN que tenga el repositorio y las credenciales:
 
-  ```bash
-  curl --fail --silent --show-error --user "$NVR_USER:$NVR_PASS" \
-    "http://192.168.0.227/Network/Interfaces" > /tmp/nvr-interfaces.before.xml
-  cp /tmp/nvr-interfaces.before.xml /tmp/nvr-interfaces.put.xml
-  # Editar /tmp/nvr-interfaces.put.xml: Gateway 192.168.0.8, nada más.
-  curl --fail --silent --show-error --user "$NVR_USER:$NVR_PASS" \
-    -X PUT -H 'Content-Type: application/xml' \
-    --data-binary @/tmp/nvr-interfaces.put.xml \
-    "http://192.168.0.227/Network/Interfaces"
-  ```
+```bash
+set -a; . ~/.config/open-nvr/env; set +a
+tools/nvr_gateway.py plan  --gateway 192.168.0.8 --dns 192.168.0.8   # solo muestra el cambio
+tools/nvr_gateway.py apply --gateway 192.168.0.8 --dns 192.168.0.8
+tools/nvr_gateway.py rollback                                       # vuelta atrás
+```
 
-La forma exacta del XML se toma del `GET` y, si la API rechaza el `PUT`, se
-usa la UI; no se prueban esquemas a ciegas. Mantener una sesión LAN directa
-para poder volver inmediatamente a `192.168.0.1`.
+Mantener una sesión LAN directa con el NVR (misma subred, sin pasar por
+Baphomet) para poder ejecutar `rollback` en cualquier momento.
 
 ## Verificación del recorrido y del aislamiento
 
