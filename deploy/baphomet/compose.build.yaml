@@ -1,0 +1,18 @@
+# Construcción local de las imágenes en lugar de descargarlas de GHCR.
+# Requiere el repositorio completo:
+#   podman-compose -f compose.yaml -f compose.build.yaml build
+services:
+  nvr-watch:
+    build:
+      context: ../../services
+      dockerfile: nvr-watch/Dockerfile
+  egress-watch:
+    build:
+      context: ../../services
+      dockerfile: egress-watch/Dockerfile
+  ulogd:
+    build:
+      context: ulogd
+  dnsmasq:
+    build:
+      context: dnsmasq

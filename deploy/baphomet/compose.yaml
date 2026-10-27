@@ -1,9 +1,7 @@
 services:
   nvr-watch:
     container_name: opennvr-nvr-watch
-    build:
-      context: ../../services
-      dockerfile: nvr-watch/Dockerfile
+    image: ghcr.io/belcaik/open-nvr-nvr-watch:${OPENNVR_TAG:-latest}
     env_file: .env
     environment:
       DATA_DIR: /data
@@ -31,8 +29,7 @@ services:
 
   ulogd:
     container_name: opennvr-ulogd
-    build:
-      context: ulogd
+    image: ghcr.io/belcaik/open-nvr-ulogd:${OPENNVR_TAG:-latest}
     network_mode: host
     user: "0:0"
     cap_drop:
@@ -57,9 +54,7 @@ services:
 
   egress-watch:
     container_name: opennvr-egress-watch
-    build:
-      context: ../../services
-      dockerfile: egress-watch/Dockerfile
+    image: ghcr.io/belcaik/open-nvr-egress-watch:${OPENNVR_TAG:-latest}
     env_file: .env
     environment:
       DATA_DIR: /data
@@ -94,8 +89,7 @@ services:
     profiles:
       - dns
     container_name: opennvr-dnsmasq
-    build:
-      context: dnsmasq
+    image: ghcr.io/belcaik/open-nvr-dnsmasq:${OPENNVR_TAG:-latest}
     network_mode: host
     user: "0:0"
     command:
