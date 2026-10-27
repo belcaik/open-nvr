@@ -96,6 +96,10 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
+      # dnsmasq llama a setgid/setgroups al arrancar aunque se quede como
+      # root; sin estas dos sale con código 5 y sin mensaje.
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     volumes:
