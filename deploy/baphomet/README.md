@@ -172,6 +172,22 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
 Para levantar todo de una vez en adelante:
 `sudo podman-compose up -d`.
 
+## Hora del NVR (chrony)
+
+Con la salida bloqueada, el NVR no llega a ningún servidor NTP público. El
+contenedor `opennvr-chrony` sirve en `192.168.0.8:123/udp` la hora de
+Baphomet, que ya sincroniza `systemd-timesyncd`. chronyd corre con `-x` (no
+toca el reloj del host), sin fuentes propias (`local stratum 10`) y solo
+responde a `192.168.0.227`. El tráfico del NVR hacia Baphomet no se reenvía:
+lo cuenta `nvr_to_host` en nft.
+
+1. Comprobar que el reloj de Baphomet está sincronizado:
+   `timedatectl show -p NTPSynchronized` debe devolver `yes`.
+2. Levantarlo con el resto: `sudo podman-compose up -d chrony`.
+3. Apuntar el NTP del NVR a Baphomet (`PUT /System/NTP` con
+   `ServerName=192.168.0.8`, el mismo XML que devuelve el `GET`, o desde
+   Configuración > Sistema > Fecha y hora en la UI).
+
 ## Paso separado: cambiar la puerta de enlace del NVR
 
 Este paso es el que coloca a Baphomet en el camino. Confirmar antes que la
