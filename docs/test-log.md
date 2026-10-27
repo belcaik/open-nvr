@@ -89,3 +89,11 @@ antes y después (`captures/ptz/`).
 | T41 | ¿Graba? `GetRecordInfoByDay` del canal 1 | ✅ Tramo `general` desde las 11:18:33 (hora del NVR) que sigue creciendo. La programación ya era 24/7 (`TimeBlock_*` todo a `1`). `RecordMode=stop` y `DiskFormatStatus=unformatted` no cambian: no reflejan el estado real | `captures/T40-recordinfo-day.xml` |
 | T42 | Captura de la VM sin root (`filter-dump` de QEMU) | ✅ Con la NIC e1000e. ❌ Con virtio y vhost-net (`Vhost is not supported`): en ese caso, `tcpdump` en `vnetN` con sudo | `tools/vm_capture.sh` |
 | T43 | `tools/nvr_gateway.py plan` | ✅ Solo cambia la puerta de enlace, el DNS y DHCP. No se ha aplicado | — |
+
+## Etapa 1b: cuatro cámaras conectadas (2026-10-27)
+
+| ID | Prueba | Resultado | Evidencia |
+|---|---|---|---|
+| T03b | `FrontConnectDevicetList` con las 4 cámaras | ✅ Cuatro `W3CA-52PHM-S/W/BT` con firmware 1.8.1-20260112 en los canales 1–4. Todas con `weak password` y TUTK habilitado | `captures/api/FrontConnect-4cams.xml` |
+| T03c | Mapeo RTSP `/live/{0..5}/SUB` | ✅ `/live/N` = canal N para N = 1–4. `/live/0` es alias del canal 1. `/live/5` no devuelve flujo | `captures/ch-montage.jpg` |
+| T03d | `FrontDeviceDetectList` | Ve una cámara (MAC `…:94:35`, la del canal 3) en `192.168.1.13`, mientras que la lista registrada la tiene en `192.168.0.89`. Hipótesis: el segmento PoE usa direcciones 192.168.1.x | `captures/api/` |

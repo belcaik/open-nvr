@@ -14,12 +14,12 @@ versiona. Leyenda al final.
 | NVR, firmware | `6.9.2-20251226` (hardware y software). UI web `25.08.13.12613` | ✅ |
 | NVR, capacidad | 10 canales de vídeo, 10 de audio, `TwoWayAudio=true`, 1 salida de monitor, sin entradas ni salidas de alarma | ✅ |
 | Disco | Seagate ST3500418AS, 500 GB, formateado el 2026-10-27; grabación continua (24/7, flujo principal) | ✅ `GET /Disk`, `GetRecordInfoByDay` |
-| Cámaras registradas | **1** (canal 1). Canales 2–10 vacíos | ✅ `GET /System/FrontConnectDevicetList` |
-| Cámara 1, modelo | `W3CA-52PHM-S/W/BT`, firmware `1.8.1-20260112` | ✅ |
+| Cámaras registradas | **4** (canales 1–4), conectadas el 2026-10-27. Canales 5–10 vacíos | ✅ `GET /System/FrontConnectDevicetList` |
+| Cámaras 1–4, modelo | Las cuatro son `W3CA-52PHM-S/W/BT`, firmware `1.8.1-20260112`, protocolo P6S, TUTK habilitado y estado `weak password` | ✅ |
+| IP y MAC de las cámaras | c1 `192.168.0.14` `…:97:81` · c2 `192.168.0.11` `…:99:7E` · c3 `192.168.0.89` `…:94:35` · c4 `192.168.0.138` `…:97:A4` (prefijo `5A:5A:02:83`) | ✅ |
 | Cámara 1, funciones | Pan/tilt motorizado, zoom (hasta al menos 6.8X), presets, luz IR + blanca ("inteligente"), micrófono (G.711U) | ✅ Probado (test-log T20–T23) |
 | Cámara 1, zoom óptico o digital | Sin determinar | ❓ |
 | Cámara 1, altavoz | `TwoWayAudio=true` en el NVR; no probado | ❓ |
-| Cámaras 2–4 | No registradas en el NVR | ❓ ¿Están instaladas? |
 
 ## Red
 
@@ -52,9 +52,9 @@ versiona. Leyenda al final.
 |---|---|---|
 | `/live/0/MAIN` | HEVC 2304×1296 a 10 fps, VBR de 1024 kbps, GOP 15, más PCMU 8 kHz | ✅ |
 | `/live/0/SUB` | HEVC 800×448 a 10 fps, más PCMU 8 kHz | ✅ |
-| `/live/1/*` | Mismo encuadre que `/live/0` (canal 1) | ✅ |
-| `/live/2/*`, `/live/3/*` | Sin flujo (no hay cámaras) | ✅ |
-| Mapeo `/live/N` con varias cámaras | `/live/0` es alias del canal 1; falta saber si `/live/2` sería el canal 2 | 🟡 Pendiente de más cámaras |
+| `/live/N/*`, N = 1–4 | Canal N (base 1): cuatro encuadres distintos | ✅ |
+| `/live/0/*` | Alias del canal 1 | ✅ |
+| `/live/5/*` | Sin flujo (no hay cámara) | ✅ |
 | Captura JPEG | `GET /Snapshot/1/RemoteImageCapture?ImageFormat=2`: 800×448 | ✅ |
 
 ## Cómo reproducir
