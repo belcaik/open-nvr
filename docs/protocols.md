@@ -16,11 +16,11 @@ están enlazadas en cada apartado.
 |---|---|---|
 | Vídeo y audio en directo | RTSP `/live/0/{MAIN,SUB}` | ✅ |
 | Descubrimiento | ONVIF/WS-Discovery **no disponibles**. Inventario por `GET /System/DeviceInfo` y `/System/FrontConnectDevicetList` | ✅ |
-| Pan/tilt, zoom, presets | API HTTP propietaria `PUT /PTZ/{ch}/{cmd}` | ✅ Probado |
+| Pan/tilt, zoom, foco, iris, presets | API HTTP propietaria `PUT /PTZ/{ch}/{cmd}` (EasyVideo usa la misma) | ✅ Probado |
 | Iluminación IR/blanca | `PUT /PTZ/1/Light`; configuración en `/Images/{ch}/IrCutFilter` | ✅ Probado |
 | Captura JPEG | `GET /Snapshot/1/RemoteImageCapture?ImageFormat=2` | ✅ |
 | Eventos | WebSocket `/WebSocket/Connect` (`fun=event`) | ✅ Conecta; movimiento desactivado |
-| Audio bidireccional | Solo protocolo privado P6S (6060/6066). El backchannel RTSP se ignora | ❌ Pendiente de captura del cliente oficial |
+| Audio bidireccional | Protocolo privado P6S: `VoiceStream*` en 6060 y μ-law de 320 B/40 ms en 6066 ([p6s-protocol.md](p6s-protocol.md)). El backchannel RTSP se ignora | 🟡 Documentado; falta la fórmula del login |
 | Grabaciones | Búsqueda por HTTP (`/Playback/GetRecordInfoBy*`), reproducción por P6S | ⚠️ Disco sin formatear |
 | Configuración | API HTTP/XML (ver [api-reference.md](api-reference.md)) | ✅ Documentada |
 

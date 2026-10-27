@@ -34,6 +34,8 @@ sus componentes figuran como contexto, separadas de los hallazgos.
 | S11 | **La UI guarda `Base64(usuario:contraseña)` en la cookie `userInfo`** y, en modo P2P, pasa las credenciales en la URL | Baja (afecta al navegador del cliente) | `docs/api-reference.md` §8 |
 | S12 | **Detección de movimiento desactivada** en el canal 1: no se generan eventos | Baja (funcional) | `captures/api/Pictures_1_Motion.xml` |
 | S14 | **Activador oculto de telnet en la UI web**: 5 clics en la etiqueta "MAC" de la pantalla de red en menos de 2 s ejecutan `openTelnet()`, que envía `PUT /System/DeviceCustomFunction` con el cuerpo `telnetd_enable` (`nvr/js/network/ipAddress.js`). **No se ejecutó.** El puerto 23 está cerrado (T01). Cualquiera con la contraseña de administrador podría abrir una consola telnet en el NVR. `nvr-watch` vigila 23/tcp y 2323/tcp | Alta (verificado en el código, no en el equipo) | `captures/web/nvr/js/network/ipAddress.js` |
+| S15 | **El cliente EasyVideo consulta actualizaciones por HTTP sin cifrar** en `utilerp.p6sai.com:8090` (`112.74.43.252`) y usa un bucket en Huawei Cloud. Un atacante en el camino podría manipular la respuesta. No se ha observado si el NVR hace lo mismo (pendiente del monitoreo en Baphomet) | Media | `captures/vm/http-requests.txt` |
+| S16 | **El login P6S envía en claro usuario, IP y MAC del cliente**. La contraseña va como hash con reto, pero todo el protocolo, incluido el audio, viaja sin cifrar | Baja | [p6s-protocol.md](p6s-protocol.md) |
 | S13 | **Riesgo en la red de gestión**: mientras Baphomet estuvo apagado, otro equipo con una clave SSH distinta respondió en 192.168.0.8. SSH lo detectó y no se envió nada. Conviene reservar esa IP en el DHCP del router | Media | Sesión del 2026-10-26 |
 
 ### Lo que está bien

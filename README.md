@@ -18,7 +18,7 @@ Etapas 0–2 completadas y etapa 3 (auditoría) documentada. La etapa 4
 | Pan/tilt, zoom (hasta 6.8X), presets, luz | ✅ Por API HTTP propietaria |
 | Captura JPEG y eventos por WebSocket | ✅ |
 | ONVIF | ❌ El NVR no lo ofrece |
-| Audio bidireccional | ❌ Solo por el protocolo privado P6S; pendiente |
+| Audio bidireccional | 🟡 Protocolo P6S documentado ([p6s-protocol.md](docs/p6s-protocol.md)); falta la fórmula del login |
 | Grabación | ⚠️ Disco sin formatear y grabación detenida |
 | Cámaras 2–4 | ❓ Solo hay una cámara registrada |
 | Salida a Internet bloqueada | ⏳ Preparada en `deploy/baphomet/`, sin desplegar |
