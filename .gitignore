@@ -1,0 +1,7 @@
+captures/
+orchestration/
+config/*.yaml
+!config/*.yaml.example
+.env
+.venv/
+__pycache__/
