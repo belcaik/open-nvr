@@ -57,6 +57,14 @@ se hace por VPN.
    sudo sysctl --system
    ```
 
+   Comprobar que se aplicó. Los tres `send_redirects` **deben** valer 0; el
+   archivo instalado no basta si no se aplicó:
+
+   ```bash
+   sysctl net.ipv4.ip_forward net.ipv4.conf.all.send_redirects \
+     net.ipv4.conf.default.send_redirects net.ipv4.conf.enp6s0.send_redirects
+   ```
+
 3. Instalar el ruleset y su unidad. La unidad sigue siendo la única encargada
    de aplicar nftables:
 
@@ -113,15 +121,16 @@ se hace por VPN.
 ## ntfy local (perfil `ntfy`)
 
 Si no hay otro servidor ntfy, este compose levanta uno en
-`http://192.168.0.8:8080`, sin acceso anónimo (`deny-all`) y publicado solo en
+`http://192.168.0.8:2586`, sin acceso anónimo (`deny-all`) y publicado solo en
 la IP de la LAN. Sustituye al contenedor rootless `ntfy` de `~/pod/ntfy`,
 que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
 `ntfy.tudominio.com`. Para no dejar dos definiciones, se puede borrar:
 `podman rm ntfy` (sin `sudo`; no tenía datos).
 
-1. En `.env`: `NTFY_URL=http://ntfy`, `NTFY_BASE_URL=http://192.168.0.8:8080`
-   y `NTFY_BIND=192.168.0.8`. Si el puerto 8080 ya está ocupado, cambiar
-   `NTFY_BIND` o el puerto publicado en `compose.yaml`.
+1. En `.env`: `NTFY_URL=http://ntfy`, `NTFY_BASE_URL=http://192.168.0.8:2586`,
+   `NTFY_BIND=192.168.0.8` y `NTFY_PORT=2586`. En Baphomet el 8080 lo ocupa
+   otro contenedor (`gta-v-map`). Antes de elegir un puerto, comprobar que
+   está libre con `ss -ltn 'sport = :2586'`.
 
 2. Levantar ntfy y crear un usuario administrador (para la app móvil) y un
    usuario de servicio con permiso solo de escritura en el tema:
@@ -145,7 +154,7 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
    sudo podman-compose --profile ntfy up -d --force-recreate nvr-watch egress-watch
    ```
 
-4. En la app ntfy del móvil: servidor `http://192.168.0.8:8080` (solo desde
+4. En la app ntfy del móvil: servidor `http://192.168.0.8:2586` (solo desde
    la LAN o por VPN), usuario `admin` y suscripción al tema `opennvr`.
 
 5. Prueba de extremo a extremo:
