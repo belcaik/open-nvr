@@ -28,14 +28,23 @@ se hace por VPN.
 
 ## Instalación de Baphomet (todavía sin cambiar el NVR)
 
-1. Instalar el repositorio, por ejemplo en `/opt/open-nvr`, y entrar al
-   directorio del despliegue:
+1. Descargar **solo** `deploy/baphomet/` del repositorio público (sparse
+   checkout, sin el resto del código ni la documentación). Las imágenes se
+   construyen en GitHub Actions y se descargan de `ghcr.io/belcaik/open-nvr-*`,
+   así que en el servidor no se compila nada:
 
    ```bash
+   sudo git clone --depth 1 --filter=blob:none --sparse \
+     https://github.com/belcaik/open-nvr.git /opt/open-nvr
+   sudo git -C /opt/open-nvr sparse-checkout set deploy/baphomet
    cd /opt/open-nvr/deploy/baphomet
-   cp .env.example .env
-   chmod 600 .env
+   sudo cp .env.example .env
+   sudo chmod 600 .env
    ```
+
+   Para actualizar más adelante: `sudo git -C /opt/open-nvr pull` y
+   `sudo podman-compose pull`. Para fijar una versión concreta, poner
+   `OPENNVR_TAG=sha-<commit>` en `.env`.
 
    Revisar `.env`; no escribir contraseñas ni tokens allí si se usan los
    secretos indicados abajo.
@@ -73,10 +82,11 @@ se hace por VPN.
    unset NTFY_SECRET
    ```
 
-5. Construir y levantar los tres servicios principales:
+5. Descargar las imágenes y levantar los tres servicios principales:
 
    ```bash
-   sudo podman-compose up -d --build
+   sudo podman-compose pull
+   sudo podman-compose up -d
    sudo podman-compose ps
    ```
 
@@ -84,7 +94,7 @@ se hace por VPN.
    `dnsmasq/allow.conf` y ejecutar:
 
    ```bash
-   sudo podman-compose --profile dns up -d --build
+   sudo podman-compose --profile dns up -d
    ```
 
    Con el perfil desactivado, las consultas DNS desviadas por nft fallan. Con
@@ -150,7 +160,7 @@ que nunca llegó a arrancar (estado `Created`) y tenía la URL de ejemplo
    con el usuario `admin`.
 
 Para levantar todo de una vez en adelante:
-`sudo podman-compose --profile ntfy --profile dns up -d --build`.
+`sudo podman-compose --profile ntfy --profile dns up -d`.
 
 ## Paso separado: cambiar la puerta de enlace del NVR
 
