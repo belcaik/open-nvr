@@ -21,7 +21,7 @@ Etapas 0–2 completadas y etapa 3 (auditoría) documentada. La etapa 4
 | Audio bidireccional | 🟡 Protocolo P6S documentado ([p6s-protocol.md](docs/p6s-protocol.md)); falta la fórmula del login |
 | Grabación | ⚠️ Disco sin formatear y grabación detenida |
 | Cámaras 2–4 | ❓ Solo hay una cámara registrada |
-| Salida a Internet bloqueada | ⏳ Preparada en `deploy/baphomet/`, sin desplegar |
+| Salida a Internet bloqueada | ✅ El NVR sale por Baphomet (192.168.0.8), descarte por defecto; P2P `offline` |
 
 Leyenda: ✅ comprobado · ❌ no disponible · ⚠️ requiere acción · ❓ pendiente ·
 ⏳ en curso.

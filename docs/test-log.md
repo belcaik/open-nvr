@@ -111,3 +111,15 @@ antes y después (`captures/ptz/`).
 | T56 | Salida a Internet del cliente | `utilerp.p6sai.com:8090` (HTTP sin cifrar, consulta de firmware) y un bucket en Huawei Cloud. Sin P2P | [p6s-protocol.md](p6s-protocol.md) |
 | T57 | Cambios hechos por el propietario desde EasyVideo | Zona horaria UTC−3 (`CST--3:00:00`), NTP `0.cl.pool.ntp.org`, formato de fecha DDMMAAAA, acción de PTZ watch `preset`. Canal 1 MAIN configurado a 2880×1616, pero **RTSP sigue en 2304×1296** (el cambio no se aplicó). El NTP sigue en `fail` | `captures/api/after-easyvideo/` |
 | T58 | Reproducción de grabaciones | No apareció en la captura: solo `GetRecordInfoByMonth`, sin flujo de reproducción | — |
+
+## Etapa 4b: despliegue en Baphomet y cambio de puerta de enlace (2026-10-27)
+
+| ID | Prueba | Resultado | Evidencia |
+|---|---|---|---|
+| T60 | Despliegue con podman-compose 1.0.6 (Ubuntu 24.04) | Fallos encontrados y corregidos: `--profile` no existe (perfiles eliminados), healthchecks `CMD` mal traducidos (cambiados a `CMD-SHELL`), puerto 8080 ocupado por otro contenedor (ntfy pasa a 2586), ntfy sin permiso para el puerto 80 (escucha en 2586), dnsmasq con código 5 sin mensaje (necesita `SETUID`/`SETGID`, reproducido con Docker), secretos que deben existir antes de `up` (podman no admite secretos vacíos) | commits `ca746aa`…`3b7aa2c` |
+| T61 | Estado final | ✅ Los 5 contenedores `Up (healthy)`. `send_redirects=0` en all, default y enp6s0. `ip_forward=1`. `opennvr-nft.service` activo | Salida de `podman ps` |
+| T62 | dnsmasq desde la LAN | ✅ `pool.ntp.org` y `erp.zwcloud.wang` dan NXDOMAIN (lista vacía) | — |
+| T63 | `tools/nvr_gateway.py apply --gateway 192.168.0.8 --dns 192.168.0.8` | ✅ Puerta de enlace 192.168.0.8 y DHCP desactivado. El NVR **ignora el cambio de DNS** (sigue 1.1.1.1/8.8.8.8), pero da igual: nft redirige el puerto 53 del NVR a dnsmasq. Copia en `captures/network/` | — |
+| T64 | P2P tras el cambio | ✅ `internet-ready` → **`offline`** en menos de 60 s, estable durante 3 minutos | `GET /Network/P2PV2` |
+| T65 | RTSP local tras el cambio | ✅ `/live/1/SUB` responde | — |
+| T66 | Contadores nft | Pendiente de leer (requiere root en Baphomet) | — |

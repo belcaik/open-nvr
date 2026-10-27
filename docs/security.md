@@ -21,7 +21,7 @@ sus componentes figuran como contexto, separadas de los hallazgos.
 
 | ID | Hallazgo | Gravedad | Evidencia |
 |---|---|---|---|
-| S01 | **P2P TUTK activo y conectado a Internet.** `GET /Network/P2PV2`: `P2PProtocolName=tutk`, `Enable=true`, `Status=internet-ready`. El NVR es accesible desde la plataforma P2P del fabricante con su UID, sin pasar por la red local | Alta | `captures/api/Network_P2PV2.xml` |
+| S01 | **[Mitigado el 2026-10-27: sin salida a Internet, P2P `offline` (T64)]** **P2P TUTK activo y conectado a Internet.** `GET /Network/P2PV2`: `P2PProtocolName=tutk`, `Enable=true`, `Status=internet-ready`. El NVR es accesible desde la plataforma P2P del fabricante con su UID, sin pasar por la red local | Alta | `captures/api/Network_P2PV2.xml` |
 | S02 | **Credenciales sin cifrar.** La API HTTP usa Basic auth sin TLS y RTSP también acepta Basic. Cualquier equipo de la LAN que vea el tráfico obtiene la contraseña de administrador | Alta | `test-log.md` T02b y T02c |
 | S03 | **La cámara también tiene TUTK** (`TutkEnable=true`, con DID propio). Ahora está `offline` porque el segmento PoE aislado no tiene salida | Media | `captures/api/System_FrontConnectDevicetList.xml` |
 | S04 | **Contraseña débil en las cuatro cámaras.** El NVR informa `LoginStatus=weak password` en los canales 1–4 | Media | `captures/api/System_FrontConnectDeviceStatusList.xml` |
