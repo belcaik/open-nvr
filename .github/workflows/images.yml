@@ -14,16 +14,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-go@v5
         with:
-          python-version: "3.12"
-      - name: Unit tests
-        run: |
-          for d in services/common services/nvr-watch services/egress-watch; do
-            (cd "$d" && PYTHONPATH=.:../common python -m unittest discover -s tests -v)
-          done
-      - name: Compile all Python
-        run: python -m compileall -q services tools
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test -race ./...
 
   images:
     needs: test
@@ -36,12 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: nvr-watch
-            context: services
-            dockerfile: services/nvr-watch/Dockerfile
-          - name: egress-watch
-            context: services
-            dockerfile: services/egress-watch/Dockerfile
+          - name: ""
+            context: .
+            dockerfile: Dockerfile
+          - name: caddy
+            context: deploy/baphomet/caddy
+            dockerfile: deploy/baphomet/caddy/Dockerfile
           - name: ulogd
             context: deploy/baphomet/ulogd
             dockerfile: deploy/baphomet/ulogd/Dockerfile
@@ -62,7 +59,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/open-nvr-${{ matrix.name }}
+          images: ghcr.io/${{ github.repository_owner }}/open-nvr${{ matrix.name != '' && format('-{0}', matrix.name) || '' }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -76,3 +73,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ github.sha }}
