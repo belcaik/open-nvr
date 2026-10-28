@@ -38,6 +38,10 @@ type Deps struct {
 	Go2RTCHealth   func(ctx context.Context) error
 	TrustedProxies []netip.Prefix
 	Channels       []int
+	Config         ConfigService    // nil: sin páginas de ajustes
+	Recordings     RecordingService // nil: sin página de grabaciones
+	Events         EventHub         // nil: sin /api/events
+	Location       *time.Location   // zona horaria del NVR
 	// FailDelay retrasa la respuesta a un login fallido (500 ms en producción).
 	FailDelay time.Duration
 }
@@ -48,6 +52,9 @@ type server struct {
 }
 
 func NewServer(d Deps) http.Handler {
+	if d.Location == nil {
+		d.Location = time.Local
+	}
 	s := &server{d: d, pages: parsePages()}
 	mux := http.NewServeMux()
 
@@ -68,6 +75,15 @@ func NewServer(d Deps) http.Handler {
 		mux.Handle("GET /api/stream/ws", authed(s.sameOrigin(d.Media.ServeHTTP)))
 	}
 	s.registerCameraRoutes(mux, authed)
+	if d.Config != nil {
+		s.registerSettingsRoutes(mux, authed)
+	}
+	if d.Recordings != nil {
+		mux.Handle("GET /recordings", authed(s.recordings))
+	}
+	if d.Events != nil {
+		mux.Handle("GET /api/events", authed(s.events))
+	}
 
 	return securityHeaders(s.privateOnly(mux))
 }

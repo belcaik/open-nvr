@@ -1,0 +1,37 @@
+{{define "content"}}
+{{$p := .Data}}
+<nav class="tabs">
+{{range $p.Channels}}<a class="{{if eq . $p.Channel}}active{{end}}" href="/recordings?ch={{.}}&date={{$p.Day.Format "2006-01-02"}}">Cámara {{.}}</a>{{end}}
+</nav>
+<section class="recordings">
+  <div class="panel calendar">
+    <div class="row cal-head">
+      <a class="button" href="{{$p.PrevMonth}}" aria-label="Mes anterior">‹</a>
+      <h2>{{$p.MonthName}}</h2>
+      <a class="button" href="{{$p.NextMonth}}" aria-label="Mes siguiente">›</a>
+    </div>
+    {{with $p.DaysErr}}<p class="error">{{.}}</p>{{end}}
+    <table>
+      <thead><tr><th>L</th><th>M</th><th>X</th><th>J</th><th>V</th><th>S</th><th>D</th></tr></thead>
+      <tbody>
+      {{range $p.Weeks}}<tr>{{range .}}<td>{{if .Day}}<a class="{{if .Has}}has{{end}} {{if .Selected}}sel{{end}}" href="{{.Link}}">{{.Day}}</a>{{end}}</td>{{end}}</tr>
+      {{end}}
+      </tbody>
+    </table>
+    <p class="muted">Los días marcados tienen grabación en alguna cámara.</p>
+  </div>
+  <div class="panel">
+    <h2>{{$p.Day.Format "02/01/2006"}} · Cámara {{$p.Channel}} · {{$p.Total}}</h2>
+    {{with $p.SegErr}}<p class="error">{{.}}</p>{{end}}
+    <svg class="timeline" viewBox="0 0 1440 24" preserveAspectRatio="none" role="img" aria-label="Tramos grabados del día">
+      <rect class="bg" x="0" y="0" width="1440" height="24"/>
+      {{range $p.Bars}}<rect class="bar t-{{.Type}}" x="{{printf "%.1f" .X}}" y="0" width="{{printf "%.1f" .W}}" height="24"><title>{{.Label}}</title></rect>{{end}}
+    </svg>
+    <div class="ticks"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+    <ul class="segments">
+      {{range $p.Bars}}<li><span class="swatch t-{{.Type}}"></span>{{.Label}}</li>{{else}}<li class="muted">Sin grabaciones este día.</li>{{end}}
+    </ul>
+    <p class="notice">Reproducción pendiente: el NVR solo la ofrece por su protocolo propio (P6S), aún sin implementar.</p>
+  </div>
+</section>
+{{end}}

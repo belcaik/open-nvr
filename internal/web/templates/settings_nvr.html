@@ -1,0 +1,46 @@
+{{define "content"}}
+{{$p := .Data}}
+<nav class="tabs">
+  <a href="/settings">Cámaras</a>
+  <a class="active" href="/settings/nvr">NVR</a>
+</nav>
+<section class="settings">
+  <div class="panel">
+    <h2>Hora</h2>
+    {{with $p.Clock.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Clock.V}}
+    <p>Hora del NVR: {{.Now.Format "02/01/2006 15:04:05"}}</p>
+    <p>NTP: {{if .NTPEnabled}}activado, servidor {{.NTPServer}}{{else}}desactivado{{end}} · zona {{.TimeZone}}</p>
+    <p class="muted">Última sincronización correcta: {{.LastSync}}</p>
+    <form class="row" hx-post="/api/settings/nvr/ntp-sync" hx-target="find output" hx-swap="innerHTML">
+      <button type="submit">Sincronizar ahora</button><output></output>
+    </form>
+    {{end}}{{end}}
+  </div>
+
+  <div class="panel">
+    <h2>Disco</h2>
+    {{with $p.Disks.Err}}<p class="error">{{.}}</p>{{end}}
+    {{range $p.Disks.V}}<p>{{.Model}} · {{.FreeMB}} de {{.TotalMB}} MB libres · estado {{.State}}</p>{{else}}{{if not $p.Disks.Err}}<p>Sin discos.</p>{{end}}{{end}}
+  </div>
+
+  <form class="panel" hx-put="/api/settings/nvr/record" hx-target="find output" hx-swap="innerHTML">
+    <h2>Grabación</h2>
+    {{with $p.Record.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Record.V}}
+    <label>Pregrabación (s) <input type="number" name="pre" min="0" max="30" value="{{.PreRecord}}"></label>
+    <label>Postgrabación (s) <input type="number" name="delay" min="0" max="300" value="{{.DelayRecord}}"></label>
+    <label>Flujo
+      <select name="stream"><option value="main" {{if eq .StreamType "main"}}selected{{end}}>Principal</option><option value="sub" {{if eq .StreamType "sub"}}selected{{end}}>Secundario</option></select></label>
+    <label class="row"><input type="checkbox" name="overwrite" {{if .Overwrite}}checked{{end}}> Sobrescribir lo más antiguo con el disco lleno</label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <div class="panel">
+    <h2>Red (solo lectura)</h2>
+    {{with $p.Network.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Network.V}}
+    <p>IP {{.IP}} / {{.Mask}} · puerta de enlace {{.Gateway}} · DHCP {{if .DHCP}}sí{{else}}no{{end}}</p>
+    <p>DNS {{.DNS1}}, {{.DNS2}} · MAC {{.MAC}}</p>
+    {{end}}{{end}}
+  </div>
+</section>
+{{end}}

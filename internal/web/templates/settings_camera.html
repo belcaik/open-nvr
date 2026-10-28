@@ -1,0 +1,74 @@
+{{define "content"}}
+{{$p := .Data}}{{$ch := $p.Channel}}
+<nav class="tabs">
+  {{range $p.Channels}}<a class="{{if eq . $ch}}active{{end}}" href="/settings/camera/{{.}}">Cámara {{.}}</a>{{end}}
+  <a href="/settings/nvr">NVR</a>
+</nav>
+<section class="settings">
+  <form class="panel" hx-put="/api/settings/{{$ch}}/color" hx-target="find output" hx-swap="innerHTML">
+    <h2>Imagen</h2>
+    {{with $p.Color.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Color.V}}
+    <label>Brillo <input type="range" name="brightness" min="0" max="100" value="{{.Brightness}}"></label>
+    <label>Contraste <input type="range" name="contrast" min="0" max="100" value="{{.Contrast}}"></label>
+    <label>Saturación <input type="range" name="saturation" min="0" max="100" value="{{.Saturation}}"></label>
+    <label>Tono <input type="range" name="hue" min="0" max="100" value="{{.Hue}}"></label>
+    <label>Nitidez <input type="range" name="sharpness" min="0" max="100" value="{{.Sharpness}}"></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/basic" hx-target="find output" hx-swap="innerHTML">
+    <h2>Básico</h2>
+    {{with $p.Basic.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Basic.V}}
+    <label>Volteo
+      <select name="flip">{{$v := .FlipMode}}{{range $o := flipModes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <label>WDR
+      <select name="wdr">{{$v := .WDR}}{{range $o := wdrModes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <label>Reducción de ruido
+      <select name="nr">{{$v := .NoiseReduce}}{{range $o := nrModes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <label>Contraluz (BLC)
+      <select name="blc">{{$v := .BLC}}{{range $o := blcModes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/ircut" hx-target="find output" hx-swap="innerHTML">
+    <h2>Día / noche</h2>
+    {{with $p.IrCut.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.IrCut.V}}
+    <label>Modo
+      <select name="mode">{{$v := .Mode}}{{range $o := irModes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <label>Inicio del día (modo time) <input type="time" name="day_start" step="1" value="{{.DayStart}}"></label>
+    <label>Fin del día (modo time) <input type="time" name="day_end" step="1" value="{{.DayEnd}}"></label>
+    <label>Sensibilidad <input type="range" name="sensitivity" min="0" max="100" value="{{.Sensitivity}}"></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/motion" hx-target="find output" hx-swap="innerHTML">
+    <h2>Detección de movimiento</h2>
+    {{with $p.Motion.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Motion.V}}
+    <label class="row"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Activada</label>
+    <label>Sensibilidad
+      <select name="sensitivity">{{$v := .Sensitivity}}{{range $o := motionLevels}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <p class="muted">Con la detección activada, los avisos aparecen en vivo en la interfaz.</p>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/schedule" hx-target="find output" hx-swap="innerHTML">
+    <h2>Grabación</h2>
+    {{with $p.Schedule.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Schedule.V}}
+    <p>Horario actual: {{if eq .Mode "continuous"}}continuo (24 h, todos los días){{else if eq .Mode "off"}}sin grabación{{else}}personalizado{{end}} · flujo {{.StreamType}}</p>
+    <label>Cambiar a
+      <select name="mode"><option value="continuous">Continua</option><option value="off">Sin grabación</option></select></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <div class="panel">
+    <h2>Flujos (solo lectura)</h2>
+    {{with $p.Main.V}}<p>Principal: {{.Codec}} {{.Width}}×{{.Height}}, {{.FPS}} fps, {{.BitrateKbps}} kbps {{.BitrateType}}</p>{{end}}{{with $p.Main.Err}}<p class="error">{{.}}</p>{{end}}
+    {{with $p.Sub.V}}<p>Secundario: {{.Codec}} {{.Width}}×{{.Height}}, {{.FPS}} fps, {{.BitrateKbps}} kbps {{.BitrateType}}</p>{{end}}{{with $p.Sub.Err}}<p class="error">{{.}}</p>{{end}}
+  </div>
+</section>
+{{end}}

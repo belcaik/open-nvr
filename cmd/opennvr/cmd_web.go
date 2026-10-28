@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	_ "time/tzdata" // la imagen busybox no trae zoneinfo
 
 	"github.com/belcaik/open-nvr/internal/auth"
 	"github.com/belcaik/open-nvr/internal/camera"
@@ -77,10 +78,16 @@ func serveWeb() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	client := nvr.New("http://"+net.JoinHostPort(host, strconv.Itoa(config.Int("NVR_HTTP_PORT", 80))), user, pass)
+	loc, err := time.LoadLocation(config.Str("NVR_TZ", "America/Santiago"))
+	if err != nil {
+		return fmt.Errorf("NVR_TZ: %w", err)
+	}
+	client := nvr.New("http://"+net.JoinHostPort(host, strconv.Itoa(config.Int("NVR_HTTP_PORT", 80))), user, pass).WithLocation(loc)
 	guard := camera.NewGuard(client, 1500*time.Millisecond, time.Now)
 	guardDone := make(chan struct{})
 	go func() { guard.Run(ctx); close(guardDone) }()
+	hub := camera.NewHub()
+	go hub.Run(ctx, client.Events, channels)
 
 	handler := web.NewServer(web.Deps{
 		Cameras: &camera.Service{NVR: client, Guard: guard},
@@ -93,6 +100,10 @@ func serveWeb() error {
 		Go2RTCHealth:   go2rtcHealth(apiListen),
 		TrustedProxies: trusted,
 		Channels:       channels,
+		Config:         client,
+		Recordings:     client,
+		Events:         hub,
+		Location:       loc,
 		FailDelay:      500 * time.Millisecond,
 	})
 	listen := config.Str("WEB_LISTEN", "127.0.0.1:8095")

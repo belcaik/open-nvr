@@ -12,7 +12,10 @@ import (
 // nvrError traduce los errores del cliente a código HTTP y mensaje.
 func nvrError(err error) (int, string) {
 	var bad *nvr.BadResponseError
+	var invalid *nvr.ValidationError
 	switch {
+	case errors.As(err, &invalid):
+		return http.StatusBadRequest, "Valor no válido en " + invalid.Field + ": " + invalid.Reason
 	case errors.Is(err, nvr.ErrUnavailable):
 		return http.StatusServiceUnavailable, "El NVR no responde"
 	case errors.Is(err, nvr.ErrUnauthorized):

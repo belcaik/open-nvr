@@ -8,7 +8,20 @@ import (
 	"strings"
 
 	"github.com/belcaik/open-nvr/internal/logx"
+	"github.com/belcaik/open-nvr/internal/nvr"
 )
+
+var funcs = template.FuncMap{
+	// list crea una lista de opciones en la plantilla.
+	"list": func(xs ...string) []string { return xs },
+	// Valores admitidos por el NVR (una sola fuente: el paquete nvr).
+	"flipModes":    func() []string { return nvr.FlipModes },
+	"wdrModes":     func() []string { return nvr.WDRModes },
+	"nrModes":      func() []string { return nvr.NoiseReduceModes },
+	"blcModes":     func() []string { return nvr.BLCModes },
+	"irModes":      func() []string { return nvr.IrCutModes },
+	"motionLevels": func() []string { return nvr.MotionSensitivities },
+}
 
 // parsePages compila cada página junto con layout.html. Los parciales
 // (nombre que empieza por "_") se compilan solos.
@@ -21,10 +34,10 @@ func parsePages() map[string]*template.Template {
 			continue
 		}
 		if strings.HasPrefix(base, "_") {
-			pages[base] = template.Must(template.ParseFS(templateFS, n))
+			pages[base] = template.Must(template.New(base+".html").Funcs(funcs).ParseFS(templateFS, n))
 			continue
 		}
-		pages[base] = template.Must(template.ParseFS(templateFS, "templates/layout.html", n))
+		pages[base] = template.Must(template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", n))
 	}
 	return pages
 }
