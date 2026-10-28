@@ -170,7 +170,7 @@ el falso registra los cuerpos de los PUT):
   valor.
 - Cada GET tipado devuelve los valores del fixture. Por ejemplo, Color
   50/50/50/50/50, `RecordSchedule.AllDay` true con 7×48 `true`, `Clock.Now` =
-  2026-10-27 07:06:11 en la zona dada, disco `ST3500418AS` con 476940/464150
+  la `SystemTime` del fixture `System_Time.xml` en la zona dada, disco `ST3500418AS` con 476940/464150
   y `Stream(1,1)` HEVC (`H.265`) 2304×1296, 10 fps.
 - Cada Set: el PUT es el XML del GET con solo esos campos cambiados (se
   compara con `PatchXML` del fixture). Con un valor fuera de rango (101,
