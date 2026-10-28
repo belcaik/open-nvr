@@ -40,7 +40,9 @@ func Render(c Config) string {
 	var b strings.Builder
 	q := func(s string) string { return fmt.Sprintf("%q", s) }
 	fmt.Fprintf(&b, "api:\n  listen: %s\n  origin: \"*\"\n", q(c.APIListen))
-	b.WriteString("rtsp:\n  listen: \"\"\n")
+	// ffmpeg (transcodificación) lee la fuente del servidor RTSP interno de
+	// go2rtc; solo escucha en loopback.
+	b.WriteString("rtsp:\n  listen: \"127.0.0.1:8554\"\n")
 	fmt.Fprintf(&b, "webrtc:\n  listen: %s\n  candidates:\n    - %s\n", q(c.WebRTCListen), q(c.Candidate))
 	b.WriteString("log:\n  level: warn\nstreams:\n")
 	userinfo := url.UserPassword(c.User, c.Pass).String()

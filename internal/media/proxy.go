@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/belcaik/open-nvr/internal/logx"
 )
 
 // Proxy reenvía /api/stream/ws?src=<stream> a la API WebSocket de go2rtc.
@@ -29,6 +31,9 @@ func NewProxy(apiListen string, channels []int) *Proxy {
 		r.Out.Host = apiListen
 		r.Out.Header.Del("Cookie")
 		r.Out.Header.Del("Authorization")
+	}, ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+		logx.Printf("proxy de vídeo: %v", err)
+		http.Error(w, "El servicio de vídeo no responde", http.StatusBadGateway)
 	}}
 	return &Proxy{allowed: allowed, rp: rp}
 }

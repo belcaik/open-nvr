@@ -11,7 +11,7 @@ const golden = `api:
   listen: "127.0.0.1:1984"
   origin: "*"
 rtsp:
-  listen: ""
+  listen: "127.0.0.1:8554"
 webrtc:
   listen: ":8555"
   candidates:
