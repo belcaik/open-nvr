@@ -4,12 +4,12 @@
 services:
   nvr-watch:
     build:
-      context: ../../services
-      dockerfile: nvr-watch/Dockerfile
+      context: ../..
+      dockerfile: Dockerfile
   egress-watch:
     build:
-      context: ../../services
-      dockerfile: egress-watch/Dockerfile
+      context: ../..
+      dockerfile: Dockerfile
   ulogd:
     build:
       context: ulogd

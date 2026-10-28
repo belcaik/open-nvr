@@ -1,7 +1,8 @@
 services:
   nvr-watch:
     container_name: opennvr-nvr-watch
-    image: ghcr.io/belcaik/open-nvr-nvr-watch:${OPENNVR_TAG:-latest}
+    image: ghcr.io/belcaik/open-nvr:${OPENNVR_TAG:-latest}
+    command: ["nvr-watch", "run"]
     env_file: .env
     environment:
       DATA_DIR: /data
@@ -21,7 +22,7 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD-SHELL", "grep -q nvrwatch /proc/1/cmdline"]
+      test: ["CMD-SHELL", "/opennvr healthcheck --file /tmp/heartbeat --max-age 300s"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -54,7 +55,8 @@ services:
 
   egress-watch:
     container_name: opennvr-egress-watch
-    image: ghcr.io/belcaik/open-nvr-egress-watch:${OPENNVR_TAG:-latest}
+    image: ghcr.io/belcaik/open-nvr:${OPENNVR_TAG:-latest}
+    command: ["egress-watch", "run"]
     env_file: .env
     environment:
       DATA_DIR: /data
@@ -79,7 +81,7 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD-SHELL", "grep -q egresswatch /proc/1/cmdline"]
+      test: ["CMD-SHELL", "/opennvr healthcheck --file /tmp/heartbeat --max-age 60s"]
       interval: 30s
       timeout: 5s
       retries: 3
