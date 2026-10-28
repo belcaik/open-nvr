@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -43,7 +44,7 @@ func serveWeb() error {
 	if pass == "" {
 		logx.Printf("aviso: sin NVR_PASS/NVR_PASS_FILE; la API y el vídeo fallarán con 401")
 	}
-	passHash := config.Secret("WEB_PASSWORD_HASH")
+	passHash := extractPHC(config.Secret("WEB_PASSWORD_HASH"))
 	if passHash == "" {
 		return errors.New("falta WEB_PASSWORD_HASH(_FILE); generar con `opennvr hash-password`")
 	}
@@ -132,4 +133,18 @@ func go2rtcHealth(apiListen string) func(context.Context) error {
 		}
 		return nil
 	}
+}
+
+// extractPHC devuelve el primer hash "$argon2id$..." del secreto. Tolera el
+// texto que una TTY mezcla con la salida de hash-password (prompt, \r).
+func extractPHC(s string) string {
+	i := strings.Index(s, "$argon2id$")
+	if i < 0 {
+		return ""
+	}
+	s = s[i:]
+	if j := strings.IndexAny(s, " \t\r\n"); j >= 0 {
+		s = s[:j]
+	}
+	return s
 }

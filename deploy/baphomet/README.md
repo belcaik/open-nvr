@@ -200,14 +200,23 @@ configuración de `opennvr-go2rtc`, que reparte el vídeo por WebRTC
 certificado de Let's Encrypt por DNS-01 de Cloudflare. nftables solo deja
 llegar al puerto 8095 desde el propio host (Caddy) y al 8555 desde la LAN.
 
-1. Secretos de la web (la contraseña no queda en el historial de la shell):
+1. Secretos de la web (la contraseña no queda en el historial de la shell).
+   No usar `-t` en `podman run`: con una TTY, el texto `Contraseña:` se
+   mezcla con la salida y acaba dentro del secreto.
 
    ```bash
-   sudo podman run --rm -it ghcr.io/belcaik/open-nvr:latest hash-password \
+   read -rsp 'Contraseña web: ' P; echo
+   printf '%s\n' "$P" | sudo podman run --rm -i ghcr.io/belcaik/open-nvr:latest hash-password \
      | sudo podman secret create web_password_hash -
+   unset P
    sudo podman run --rm ghcr.io/belcaik/open-nvr:latest hash-password --gen-key \
      | sudo podman secret create web_session_key -
    ```
+
+   Para cambiar la contraseña: `sudo podman secret rm web_password_hash`,
+   crearlo de nuevo como arriba y recrear los contenedores (go2rtc depende de
+   web, así que se quitan los dos):
+   `sudo podman stop opennvr-go2rtc opennvr-web && sudo podman rm opennvr-go2rtc opennvr-web && sudo podman-compose up -d web && sudo podman-compose up -d go2rtc`.
 
    Las sesiones sobreviven a reinicios porque la cookie va firmada con
    `web_session_key`. Para cerrar todas las sesiones: borrar y volver a crear
