@@ -22,7 +22,7 @@ button:active, button.active { background: var(--accent); border-color: var(--ac
 button.link { background: none; border: 0; color: var(--muted); }
 input { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); min-height: 44px; padding: 0 10px; }
 
-.bar { display: flex; align-items: center; gap: 16px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
 .brand { font-weight: 600; }
 #status { flex: 1; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--muted); }
@@ -75,7 +75,7 @@ a.button:hover { border-color: var(--muted); }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .tabs a { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); }
 .tabs a.active { color: var(--text); border-color: var(--accent); }
-.settings { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; }
+.settings { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); align-items: start; }
 .settings label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .settings label.row { display: flex; color: var(--text); }
 .settings select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); min-height: 44px; padding: 0 8px; }
@@ -91,7 +91,7 @@ a.button:hover { border-color: var(--muted); }
 .cal-head h2 { margin: 0; text-transform: capitalize; }
 .timeline { width: 100%; height: 28px; display: block; border-radius: 4px; }
 .timeline .bg { fill: var(--bg); }
-.bar, .swatch { fill: var(--accent); background: var(--accent); }
+.seg, .swatch { fill: var(--accent); background: var(--accent); }
 .t-motion { fill: #e3a33b; background: #e3a33b; }
 .t-alarm, .t-ai { fill: var(--bad); background: var(--bad); }
 .t-manual { fill: var(--ok); background: var(--ok); }

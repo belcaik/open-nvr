@@ -6,9 +6,9 @@
 <meta name="color-scheme" content="dark light">
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true}]}'>
 <title>{{if .Title}}{{.Title}} · {{end}}open-nvr</title>
-<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/app.css">
-<script src="/static/vendor/htmx.min.js" defer></script>
+<link rel="icon" href="{{asset "/static/favicon.svg"}}" type="image/svg+xml">
+<link rel="stylesheet" href="{{asset "/static/app.css"}}">
+<script src="{{asset "/static/vendor/htmx.min.js"}}" defer></script>
 </head>
 <body{{if .CSRF}} hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'{{end}}>
 {{if .User}}
@@ -26,6 +26,6 @@
 {{template "content" .}}
 </main>
 {{block "scripts" .}}{{end}}
-{{if .User}}<script type="module" src="/static/js/events.js"></script>{{end}}
+{{if .User}}<script type="module" src="{{asset "/static/js/events.js"}}"></script>{{end}}
 </body>
 </html>

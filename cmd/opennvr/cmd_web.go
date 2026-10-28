@@ -89,6 +89,7 @@ func serveWeb() error {
 	hub := camera.NewHub()
 	go hub.Run(ctx, client.Events, channels)
 
+	web.AssetVersion = version
 	handler := web.NewServer(web.Deps{
 		Cameras: &camera.Service{NVR: client, Guard: guard},
 		Sessions: &auth.Sessions{Key: key, Idle: 7 * 24 * time.Hour, MaxAge: 30 * 24 * time.Hour,

@@ -11,7 +11,12 @@ import (
 	"github.com/belcaik/open-nvr/internal/nvr"
 )
 
+// AssetVersion invalida la caché de /static/ en cada versión desplegada.
+var AssetVersion = "dev"
+
 var funcs = template.FuncMap{
+	// asset añade la versión a la URL de un recurso estático.
+	"asset": func(path string) string { return path + "?v=" + AssetVersion },
 	// list crea una lista de opciones en la plantilla.
 	"list": func(xs ...string) []string { return xs },
 	// Valores admitidos por el NVR (una sola fuente: el paquete nvr).
