@@ -17,6 +17,9 @@
 define NVR4 = 192.168.0.227
 define NVR_MAC = 5a:5a:02:5b:e4:18
 define BAPHOMET4 = 192.168.0.8
+define LAN4 = 192.168.0.0/24
+define WEB_PORT = 8095
+define WEBRTC_PORT = 8555
 
 # Redes de contenedores podman (10.88.0.0/16 es la red por defecto;
 # podman-compose crea redes en 10.89.0.0/16). Pueden iniciar conexiones hacia
@@ -55,6 +58,8 @@ table inet opennvr {
 	counter nvr_to_host { }
 	counter nvr_dns_redirected { }
 	counter redirects_to_nvr { }
+	counter web_direct_dropped { }
+	counter webrtc_dropped { }
 
 	chain forward {
 		type filter hook forward priority filter; policy accept;
@@ -100,6 +105,15 @@ table inet opennvr {
 	chain input {
 		type filter hook input priority filter; policy accept;
 		ip saddr $NVR4 counter name nvr_to_host
+
+		# Interfaz web (opennvr-web en 192.168.0.8:8095): solo el propio host,
+		# es decir, Caddy. Desde la LAN se entra por https://nvr.belcaik.com.
+		tcp dport $WEB_PORT fib saddr type local accept
+		tcp dport $WEB_PORT counter name web_direct_dropped drop
+
+		# Medios WebRTC de go2rtc: solo la LAN.
+		meta l4proto { tcp, udp } th dport $WEBRTC_PORT ip saddr != $LAN4 counter name webrtc_dropped drop
+		meta nfproto ipv6 meta l4proto { tcp, udp } th dport $WEBRTC_PORT counter name webrtc_dropped drop
 	}
 
 	# Segunda barrera contra ICMP redirect: si el sysctl falla, el redirect
