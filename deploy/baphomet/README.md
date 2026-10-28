@@ -191,6 +191,75 @@ lo cuenta `nvr_to_host` en nft.
    `ServerName=192.168.0.8`, el mismo XML que devuelve el `GET`, o desde
    Configuración > Sistema > Fecha y hora en la UI).
 
+## Interfaz web (opennvr-web, go2rtc y Caddy)
+
+`opennvr-web` sirve la interfaz en `192.168.0.8:8095` y genera la
+configuración de `opennvr-go2rtc`, que reparte el vídeo por WebRTC
+(`8555/udp+tcp`) o MSE. El navegador entra siempre por
+`https://nvr.belcaik.com` a través del Caddy existente, que obtiene el
+certificado de Let's Encrypt por DNS-01 de Cloudflare. nftables solo deja
+llegar al puerto 8095 desde el propio host (Caddy) y al 8555 desde la LAN.
+
+1. Secretos de la web (la contraseña no queda en el historial de la shell):
+
+   ```bash
+   sudo podman run --rm -it ghcr.io/belcaik/open-nvr:latest hash-password \
+     | sudo podman secret create web_password_hash -
+   sudo podman run --rm ghcr.io/belcaik/open-nvr:latest hash-password --gen-key \
+     | sudo podman secret create web_session_key -
+   ```
+
+   Las sesiones sobreviven a reinicios porque la cookie va firmada con
+   `web_session_key`. Para cerrar todas las sesiones: borrar y volver a crear
+   ese secreto y reiniciar `web`.
+
+2. Registro DNS en Cloudflare: `A nvr.belcaik.com 192.168.0.8`, **sin
+   proxy** (nube gris). Una IP privada en DNS público no expone nada: desde
+   fuera de la LAN no es alcanzable.
+
+3. Token de Cloudflare con permiso `Zone.DNS:Edit` limitado a la zona
+   `belcaik.com`. Se pasa al Caddy existente (rootless, en
+   `/opt/services/caddy`) como variable `CF_API_TOKEN`, y su imagen pasa de
+   `docker.io/library/caddy:latest` a `ghcr.io/belcaik/open-nvr-caddy:latest`
+   (Caddy 2.11.7 con `caddy-dns/cloudflare`). Añadir al Caddyfile el bloque
+   de [caddy/nvr.Caddyfile](caddy/nvr.Caddyfile) y recargar:
+
+   ```bash
+   podman exec caddy caddy reload --config /etc/caddy/Caddyfile
+   ```
+
+4. Reglas de firewall nuevas y arranque:
+
+   ```bash
+   cd /opt/open-nvr && sudo git pull && cd deploy/baphomet
+   sudo systemctl restart opennvr-nft
+   sudo podman-compose pull web go2rtc
+   sudo podman-compose up -d web
+   sudo podman-compose up -d go2rtc
+   ```
+
+   `web` escribe `/config/go2rtc.yaml` (modo 600, con las credenciales del
+   NVR) en el volumen `go2rtc_config`; go2rtc lo lee al arrancar. Si cambia
+   la contraseña del NVR: actualizar el secreto `nvr_pass` y reiniciar `web`
+   y luego `go2rtc`.
+
+5. Verificación:
+
+   ```bash
+   curl -s https://nvr.belcaik.com/healthz                       # ok
+   curl -s -m 3 http://192.168.0.8:8095/healthz                  # desde otra máquina: sin respuesta
+   sudo ss -tlnp | grep -E ':(1984|8554|8095|8555)\b'            # 1984 y 8554 solo en 127.0.0.1
+   sudo nft list counters table inet opennvr | grep -A2 -E 'web_direct|webrtc'
+   sudo podman logs --tail 20 opennvr-web
+   ```
+
+La cuadrícula solo pide vídeo de los canales en los que el NVR informa de
+una cámara registrada: si go2rtc reintenta un canal vacío, el NVR acaba
+dejando de servir también los demás.
+
+Vuelta atrás: `sudo podman-compose stop web go2rtc` y restaurar la imagen
+anterior de Caddy.
+
 ## Paso separado: cambiar la puerta de enlace del NVR
 
 Este paso es el que coloca a Baphomet en el camino. Confirmar antes que la
