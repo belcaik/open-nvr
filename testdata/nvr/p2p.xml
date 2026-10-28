@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<P2PList Version="1.0">
+    <P2P Version="1.0">
+        <ID>1</ID>
+        <Enable>true</Enable>
+        <P2PProtocolName>tutk</P2PProtocolName>
+        <UUID>XXXXXX-000000-XXXXX</UUID>
+        <SubKey>0000000000000000</SubKey>
+        <AndroidAppDownload>http://www.zwcloud.wang/p2p_direct_p6spro.html</AndroidAppDownload>
+        <IphoneAppDownload>http://www.zwcloud.wang/p2p_direct_p6spro.html</IphoneAppDownload>
+        <Status>internet-ready</Status>
+    </P2P>
+    <P2P Version="1.0">
+        <ID>2</ID>
+        <Enable>false</Enable>
+        <P2PProtocolName>ulk</P2PProtocolName>
+        <UUID />
+        <SubKey />
+        <AndroidAppDownload>http://www.zwcloud.wang/p2p_direct_anyan.html</AndroidAppDownload>
+        <IphoneAppDownload>http://www.zwcloud.wang/p2p_direct_anyan.html</IphoneAppDownload>
+        <Status>offline</Status>
+    </P2P>
+</P2PList>

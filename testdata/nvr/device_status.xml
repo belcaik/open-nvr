@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<DeviceStatusList Version="1.0">
+    <DeviceStatus Version="1.0">
+        <ID>1</ID>
+        <MainStreamVideoBitrate>184</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>11</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>normal</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>2</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>3</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>4</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>5</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>6</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>7</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>8</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>9</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+    <DeviceStatus Version="1.0">
+        <ID>10</ID>
+        <MainStreamVideoBitrate>0</MainStreamVideoBitrate>
+        <FirstSubStreamEnable>false</FirstSubStreamEnable>
+        <FirstSubStreamVideoBitrate>0</FirstSubStreamVideoBitrate>
+        <SecondSubStreamEnable>false</SecondSubStreamEnable>
+        <SecondSubStreamVideoBitrate>0</SecondSubStreamVideoBitrate>
+        <RecordState>none</RecordState>
+        <VideoLostState>false</VideoLostState>
+        <MotionState>false</MotionState>
+        <AlarmInState>false</AlarmInState>
+        <AlarmOutState>false</AlarmOutState>
+    </DeviceStatus>
+</DeviceStatusList>

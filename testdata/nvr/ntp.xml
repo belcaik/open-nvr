@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<NTP Version="1.0">
+    <Enable>true</Enable>
+    <ServerName>pool.ntp.org</ServerName>
+    <TimeZone>CST-08:00:00</TimeZone>
+    <TimeSyncInterval>0</TimeSyncInterval>
+    <LastSuccessSyncNTPTime>2026/10/27 04:15:54</LastSuccessSyncNTPTime>
+    <SynchronizeNTPNowStatus>fail</SynchronizeNTPNowStatus>
+</NTP>

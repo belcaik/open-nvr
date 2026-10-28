@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResponseStatus Version="1.0">
+    <requestURL>/PTZ/1/TurnLeft</requestURL>
+    <statusCode>0</statusCode>
+</ResponseStatus>

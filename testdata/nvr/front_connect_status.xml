@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<DevStatusList Version="1.0">
+    <DevStatus Version="1.0">
+        <LoginStatus>weak password</LoginStatus>
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus>weak password</LoginStatus>
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus>weak password</LoginStatus>
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus>weak password</LoginStatus>
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus />
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus />
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus />
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus />
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus />
+    </DevStatus>
+    <DevStatus Version="1.0">
+        <LoginStatus />
+    </DevStatus>
+</DevStatusList>

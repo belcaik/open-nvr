@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<DeviceInfo Version="1.0">
+    <TransferFileTypeEncryptionType>1</TransferFileTypeEncryptionType>
+    <DeviceName>NVR</DeviceName>
+    <BoardType>4196</BoardType>
+    <DeviceTypeName>N310B-11NEA-AI-Z02-P4</DeviceTypeName>
+    <SerialNum>N0000000000000000000000</SerialNum>
+    <HardWareVersion>6.9.2-20251226</HardWareVersion>
+    <SoftWareVersion>6.9.2-20251226</SoftWareVersion>
+    <ChipID>CHIP0000000000000000</ChipID>
+    <VideoInputChannels>10</VideoInputChannels>
+    <AudioChannels>10</AudioChannels>
+    <AlarmInputChannels>0</AlarmInputChannels>
+    <AlarmOutputChannels>0</AlarmOutputChannels>
+    <MonitorCount>1</MonitorCount>
+    <SpotOutChannels>0</SpotOutChannels>
+    <TwoWayAudio>true</TwoWayAudio>
+    <CustomSubTypeName />
+    <ProductType>NVR</ProductType>
+    <SmartAVCList Version="1.0">
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+        <SmartAVC Version="1.0">
+            <Support>false</Support>
+        </SmartAVC>
+    </SmartAVCList>
+    <IsSupportActiveCode>true</IsSupportActiveCode>
+    <ActiveCode />
+    <ActiveStatus>success</ActiveStatus>
+    <RTMP Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </RTMP>
+    <AF Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </AF>
+    <CAY_AF Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </CAY_AF>
+    <DL Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </DL>
+    <face_snapshot Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </face_snapshot>
+    <face_recognition Version="1.0">
+        <IsSupportActiveCode>true</IsSupportActiveCode>
+        <ActiveStatus>success</ActiveStatus>
+        <ActiveFunction>false</ActiveFunction>
+    </face_recognition>
+    <people_track Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </people_track>
+    <ai_stick Version="1.0">
+        <IsSupportActiveCode>false</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction />
+    </ai_stick>
+    <nvr_advanced_people_track Version="1.0">
+        <IsSupportActiveCode>true</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction>false</ActiveFunction>
+    </nvr_advanced_people_track>
+    <nvr_face_snapshot Version="1.0">
+        <IsSupportActiveCode>true</IsSupportActiveCode>
+        <ActiveStatus>invalid active code</ActiveStatus>
+        <ActiveFunction>false</ActiveFunction>
+    </nvr_face_snapshot>
+</DeviceInfo>

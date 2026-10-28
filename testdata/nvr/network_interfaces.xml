@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<InterfaceList Version="1.0">
+    <Interface Version="1.0">
+        <ID>1</ID>
+        <NetworkCardMode>None</NetworkCardMode>
+        <MTU>1500</MTU>
+        <IPAddress Version="1.0">
+            <ipVersion>V4</ipVersion>
+            <ipAddress>192.168.0.227</ipAddress>
+            <SubnetMask>255.255.255.0</SubnetMask>
+            <Gateway>192.168.0.1</Gateway>
+            <MacAddress>00:11:22:33:44:05</MacAddress>
+            <IPAdaptive>close</IPAdaptive>
+            <DHCP Version="1.0">
+                <Enable>true</Enable>
+                <Status>initializing</Status>
+            </DHCP>
+            <DNS Version="1.0">
+                <Enable>true</Enable>
+                <PrimaryDNS>1.1.1.1</PrimaryDNS>
+                <SecondaryDNS>8.8.8.8</SecondaryDNS>
+            </DNS>
+        </IPAddress>
+    </Interface>
+</InterfaceList>

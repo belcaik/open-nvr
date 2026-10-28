@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<DevConnectList Version="1.0">
+    <DevConnect Version="1.0">
+        <ChannelID>1</ChannelID>
+        <DeviceName />
+        <IP>192.168.0.14</IP>
+        <Username>admin</Username>
+        <Password />
+        <MAC>00:11:22:33:44:01</MAC>
+        <DevType>W3CA-52PHM-S/W/BT</DevType>
+        <SoftwareVersion>1.8.1-20260112</SoftwareVersion>
+        <ProtocolType>3</ProtocolType>
+        <DevChannelCount>1</DevChannelCount>
+        <DevPort>6060</DevPort>
+        <ActionState />
+        <DID>XXXXXX-000000-XXXXX</DID>
+        <TutkEnable>true</TutkEnable>
+        <TutkStatus>offline</TutkStatus>
+        <SubnetMask>255.255.255.0</SubnetMask>
+        <Gateway>192.168.0.1</Gateway>
+        <IsActiveRegister>false</IsActiveRegister>
+        <PublicNetIP />
+        <HTTPPort>0</HTTPPort>
+        <MediaPort>0</MediaPort>
+        <IsAddDeviceByDomain>false</IsAddDeviceByDomain>
+        <SerialNumber />
+        <Domain />
+        <RtspUrl />
+        <RtspConnectFlag>false</RtspConnectFlag>
+        <ProductType>IPC</ProductType>
+    </DevConnect>
+    <DevConnect Version="1.0">
+        <ChannelID>2</ChannelID>
+        <DeviceName />
+        <IP>192.168.0.11</IP>
+        <Username>admin</Username>
+        <Password />
+        <MAC>00:11:22:33:44:02</MAC>
+        <DevType>W3CA-52PHM-S/W/BT</DevType>
+        <SoftwareVersion>1.8.1-20260112</SoftwareVersion>
+        <ProtocolType>3</ProtocolType>
+        <DevChannelCount>1</DevChannelCount>
+        <DevPort>6060</DevPort>
+        <ActionState />
+        <DID>XXXXXX-000000-XXXXX</DID>
+        <TutkEnable>true</TutkEnable>
+        <TutkStatus>offline</TutkStatus>
+        <SubnetMask>255.255.255.0</SubnetMask>
+        <Gateway>192.168.0.1</Gateway>
+        <IsActiveRegister>false</IsActiveRegister>
+        <PublicNetIP />
+        <HTTPPort>0</HTTPPort>
+        <MediaPort>0</MediaPort>
+        <IsAddDeviceByDomain>false</IsAddDeviceByDomain>
+        <SerialNumber />
+        <Domain />
+        <RtspUrl />
+        <RtspConnectFlag>false</RtspConnectFlag>
+        <ProductType>IPC</ProductType>
+    </DevConnect>
+    <DevConnect Version="1.0">
+        <ChannelID>3</ChannelID>
+        <DeviceName />
+        <IP>192.168.0.89</IP>
+        <Username>admin</Username>
+        <Password />
+        <MAC>00:11:22:33:44:03</MAC>
+        <DevType>W3CA-52PHM-S/W/BT</DevType>
+        <SoftwareVersion>1.8.1-20260112</SoftwareVersion>
+        <ProtocolType>3</ProtocolType>
+        <DevChannelCount>1</DevChannelCount>
+        <DevPort>6060</DevPort>
+        <ActionState />
+        <DID>XXXXXX-000000-XXXXX</DID>
+        <TutkEnable>true</TutkEnable>
+        <TutkStatus>offline</TutkStatus>
+        <SubnetMask>255.255.255.0</SubnetMask>
+        <Gateway>192.168.0.1</Gateway>
+        <IsActiveRegister>false</IsActiveRegister>
+        <PublicNetIP />
+        <HTTPPort>0</HTTPPort>
+        <MediaPort>0</MediaPort>
+        <IsAddDeviceByDomain>false</IsAddDeviceByDomain>
+        <SerialNumber />
+        <Domain />
+        <RtspUrl />
+        <RtspConnectFlag>false</RtspConnectFlag>
+        <ProductType>IPC</ProductType>
+    </DevConnect>
+    <DevConnect Version="1.0">
+        <ChannelID>4</ChannelID>
+        <DeviceName />
+        <IP>192.168.0.138</IP>
+        <Username>admin</Username>
+        <Password />
+        <MAC>00:11:22:33:44:04</MAC>
+        <DevType>W3CA-52PHM-S/W/BT</DevType>
+        <SoftwareVersion>1.8.1-20260112</SoftwareVersion>
+        <ProtocolType>3</ProtocolType>
+        <DevChannelCount>1</DevChannelCount>
+        <DevPort>6060</DevPort>
+        <ActionState />
+        <DID>XXXXXX-000000-XXXXX</DID>
+        <TutkEnable>true</TutkEnable>
+        <TutkStatus>offline</TutkStatus>
+        <SubnetMask>255.255.255.0</SubnetMask>
+        <Gateway>192.168.0.1</Gateway>
+        <IsActiveRegister>false</IsActiveRegister>
+        <PublicNetIP />
+        <HTTPPort>0</HTTPPort>
+        <MediaPort>0</MediaPort>
+        <IsAddDeviceByDomain>false</IsAddDeviceByDomain>
+        <SerialNumber />
+        <Domain />
+        <RtspUrl />
+        <RtspConnectFlag>false</RtspConnectFlag>
+        <ProductType>IPC</ProductType>
+    </DevConnect>
+</DevConnectList>
