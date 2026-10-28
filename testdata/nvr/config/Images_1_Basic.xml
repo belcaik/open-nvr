@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Basic Version="1.0">
+    <powerLineFrequencyMode>50HZ</powerLineFrequencyMode>
+    <NoiseReduce>close</NoiseReduce>
+    <BLC>close</BLC>
+    <WDR>automatic</WDR>
+    <FlipMode>close</FlipMode>
+    <powerLineFrequencyStrength>close</powerLineFrequencyStrength>
+</Basic>

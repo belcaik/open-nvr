@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<DiskList Version="1.0">
+    <Disk Version="1.0">
+        <DiskID>0</DiskID>
+        <DiskTypeName>ST3500418AS</DiskTypeName>
+        <TotalCapacity>476940</TotalCapacity>
+        <AvailableCapacity>464150</AvailableCapacity>
+        <DiskStorageType>sd</DiskStorageType>
+        <DiskStorageAttribute>writting</DiskStorageAttribute>
+        <PictureCapacityPercent>0</PictureCapacityPercent>
+        <RecordCapacityPercent>0</RecordCapacityPercent>
+        <DiskFormatStatus>unformatted</DiskFormatStatus>
+    </Disk>
+</DiskList>

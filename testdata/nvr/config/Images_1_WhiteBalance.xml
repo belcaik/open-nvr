@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WhiteBlance Version="1.0">
+    <Mode>auto</Mode>
+    <GainRed>50</GainRed>
+    <GainBlue>50</GainBlue>
+</WhiteBlance>

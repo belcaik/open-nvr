@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Motion Version="1.0">
+    <Enable>false</Enable>
+    <Senstive>middle</Senstive>
+    <Trigger Version="1.0">
+        <NotifyAMS Version="1.0">
+            <Enable>false</Enable>
+        </NotifyAMS>
+        <BeepAlert Version="1.0">
+            <Enable>false</Enable>
+        </BeepAlert>
+        <FullScreen Version="1.0">
+            <Enable>false</Enable>
+        </FullScreen>
+        <Mail Version="1.0">
+            <Enable>false</Enable>
+        </Mail>
+        <Ftp Version="1.0">
+            <Enable>false</Enable>
+        </Ftp>
+        <Push Version="1.0">
+            <Enable>false</Enable>
+        </Push>
+        <AlarmOut Version="1.0">
+            <Enable>false</Enable>
+            <AlarmOutMask />
+        </AlarmOut>
+        <Snapshot Version="1.0">
+            <Enable>false</Enable>
+            <SnapshotMask>1000000000</SnapshotMask>
+        </Snapshot>
+        <Record Version="1.0">
+            <Enable>true</Enable>
+            <RecordMask>1000000000</RecordMask>
+        </Record>
+        <PTZ Version="1.0">
+            <Enable>false</Enable>
+            <PTZActionList Version="1.0">
+                <PTZAction Version="1.0">
+                    <ChannelID>1</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>2</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>3</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>4</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>5</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>6</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>7</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>8</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>9</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+                <PTZAction Version="1.0">
+                    <ChannelID>10</ChannelID>
+                    <ActionName>none</ActionName>
+                    <ActionNum>0</ActionNum>
+                </PTZAction>
+            </PTZActionList>
+        </PTZ>
+        <FaceMask Version="1.0">
+            <Enable>false</Enable>
+        </FaceMask>
+    </Trigger>
+    <Schedule Version="1.0">
+        <AllDay>true</AllDay>
+        <TimeBlockList Version="1.0">
+            <TimeBlock_0>000000000000000000000000000000000000000000000000</TimeBlock_0>
+            <TimeBlock_1>000000000000000000000000000000000000000000000000</TimeBlock_1>
+            <TimeBlock_2>000000000000000000000000000000000000000000000000</TimeBlock_2>
+            <TimeBlock_3>000000000000000000000000000000000000000000000000</TimeBlock_3>
+            <TimeBlock_4>000000000000000000000000000000000000000000000000</TimeBlock_4>
+            <TimeBlock_5>000000000000000000000000000000000000000000000000</TimeBlock_5>
+            <TimeBlock_6>000000000000000000000000000000000000000000000000</TimeBlock_6>
+        </TimeBlockList>
+    </Schedule>
+</Motion>

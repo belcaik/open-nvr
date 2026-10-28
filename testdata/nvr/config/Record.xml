@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Record Version="1.0">
+    <RecordWriteCircleType>writecircle</RecordWriteCircleType>
+    <RecordDeleteType>none</RecordDeleteType>
+    <RecordStreamType>main</RecordStreamType>
+    <PreRecord>0</PreRecord>
+    <DelayRecord>30</DelayRecord>
+    <RecordMode>stop</RecordMode>
+</Record>

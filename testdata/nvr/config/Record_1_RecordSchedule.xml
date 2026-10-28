@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<RecordSchedule Version="1.0">
+    <StreamType>main</StreamType>
+    <Schedule Version="1.0">
+        <AllDay>false</AllDay>
+        <TimeBlockList Version="1.0">
+            <TimeBlock_0>111111111111111111111111111111111111111111111111</TimeBlock_0>
+            <TimeBlock_1>111111111111111111111111111111111111111111111111</TimeBlock_1>
+            <TimeBlock_2>111111111111111111111111111111111111111111111111</TimeBlock_2>
+            <TimeBlock_3>111111111111111111111111111111111111111111111111</TimeBlock_3>
+            <TimeBlock_4>111111111111111111111111111111111111111111111111</TimeBlock_4>
+            <TimeBlock_5>111111111111111111111111111111111111111111111111</TimeBlock_5>
+            <TimeBlock_6>111111111111111111111111111111111111111111111111</TimeBlock_6>
+        </TimeBlockList>
+    </Schedule>
+</RecordSchedule>

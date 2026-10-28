@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<StreamConfig Version="1.0">
+    <ID>2</ID>
+    <StreamType>VideoAndAudio</StreamType>
+    <VideoCodecType>H.265</VideoCodecType>
+    <ResolutionWidth>800</ResolutionWidth>
+    <ResolutionHeigth>448</ResolutionHeigth>
+    <FrameRate>0</FrameRate>
+    <BitrateType>VBR</BitrateType>
+    <Bitrate>676</Bitrate>
+    <FixedQuality>2</FixedQuality>
+    <keyFrameInterval>15</keyFrameInterval>
+    <Transport Version="1.0">
+        <RTSPURI>rtsp://192.168.0.227:554/live/0/SUB</RTSPURI>
+    </Transport>
+</StreamConfig>

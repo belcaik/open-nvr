@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<StreamCapability Version="1.0">
+    <MainStreamCapabilityList Version="1.0">
+        <MainStreamCapability Version="1.0">
+            <ID>1</ID>
+            <ResolutionWidth>2880</ResolutionWidth>
+            <ResolutionHeigth>1616</ResolutionHeigth>
+            <MaxFrameRate>10</MaxFrameRate>
+        </MainStreamCapability>
+        <MainStreamCapability Version="1.0">
+            <ID>2</ID>
+            <ResolutionWidth>1920</ResolutionWidth>
+            <ResolutionHeigth>1080</ResolutionHeigth>
+            <MaxFrameRate>10</MaxFrameRate>
+            <SubStreamCapabilityList Version="1.0">
+                <StreamCapability Version="1.0">
+                    <ID>1</ID>
+                    <ResolutionWidth>800</ResolutionWidth>
+                    <ResolutionHeigth>448</ResolutionHeigth>
+                    <MaxFrameRate>10</MaxFrameRate>
+                </StreamCapability>
+            </SubStreamCapabilityList>
+        </MainStreamCapability>
+        <MainStreamCapability Version="1.0">
+            <ID>3</ID>
+            <ResolutionWidth>1280</ResolutionWidth>
+            <ResolutionHeigth>720</ResolutionHeigth>
+            <MaxFrameRate>10</MaxFrameRate>
+            <SubStreamCapabilityList Version="1.0">
+                <StreamCapability Version="1.0">
+                    <ID>1</ID>
+                    <ResolutionWidth>800</ResolutionWidth>
+                    <ResolutionHeigth>448</ResolutionHeigth>
+                    <MaxFrameRate>10</MaxFrameRate>
+                </StreamCapability>
+            </SubStreamCapabilityList>
+        </MainStreamCapability>
+    </MainStreamCapabilityList>
+    <CodecCapabilityList Version="1.0">
+        <streamCodecCapability Version="1.0">
+            <ID>0</ID>
+            <Codec>H.264</Codec>
+        </streamCodecCapability>
+        <streamCodecCapability Version="1.0">
+            <ID>1</ID>
+            <Codec>H.265</Codec>
+        </streamCodecCapability>
+    </CodecCapabilityList>
+</StreamCapability>

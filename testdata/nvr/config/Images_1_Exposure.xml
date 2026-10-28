@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Exposure Version="1.0">
+    <IrisType>manual</IrisType>
+    <shutter>auto</shutter>
+    <Gain>auto</Gain>
+    <Shuttermode>notsupport</Shuttermode>
+</Exposure>

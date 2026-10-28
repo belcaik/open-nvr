@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<IrCutFillter Version="1.0">
+    <Mode>intelligent</Mode>
+    <DayStartTime>07:00:00</DayStartTime>
+    <DayEndTime>19:00:00</DayEndTime>
+    <Sensitivity>45</Sensitivity>
+    <SwitchTime>0</SwitchTime>
+    <InitiveSwitchTime>3</InitiveSwitchTime>
+    <PassivitySwitchTime>3</PassivitySwitchTime>
+    <IrCutReverse>positive</IrCutReverse>
+    <ColorLastTime>10</ColorLastTime>
+    <ImageMode>facenoexposure</ImageMode>
+    <VariableInfraredThreshold>45</VariableInfraredThreshold>
+    <VariableWhiteThreshold>45</VariableWhiteThreshold>
+    <ColorWorkmode>auto</ColorWorkmode>
+    <CustomBrightness>0</CustomBrightness>
+    <CustomStartTime>00000000T180000</CustomStartTime>
+    <CustomStopTime>00000000T060000</CustomStopTime>
+    <VarWhiteControlMode>custom</VarWhiteControlMode>
+    <VarWhiteBrightness>10</VarWhiteBrightness>
+    <VarWhiteWorkMode>threshold</VarWhiteWorkMode>
+    <VarWhiteModeStartTime>00000000T180000</VarWhiteModeStartTime>
+    <VarWhiteModeStopTime>00000000T060000</VarWhiteModeStopTime>
+    <VarWhiteLightOnThreshold>87</VarWhiteLightOnThreshold>
+    <VarWhiteLightOffThreshold>36</VarWhiteLightOffThreshold>
+    <intelligentWorkmode>constantly</intelligentWorkmode>
+    <intelligentTime>0</intelligentTime>
+    <intelligentBrigthness>0</intelligentBrigthness>
+    <NormalWhiteLightOffLimit>36</NormalWhiteLightOffLimit>
+    <NormalWhiteLightOnLimit>87</NormalWhiteLightOnLimit>
+    <VarInfraredWorkMode>auto</VarInfraredWorkMode>
+    <VarInfraredBrightness>90</VarInfraredBrightness>
+    <ColorNightThreshold>45</ColorNightThreshold>
+    <IntelligentThreshold>45</IntelligentThreshold>
+    <WDRSwitch>false</WDRSwitch>
+    <WDRLevel>0</WDRLevel>
+</IrCutFillter>

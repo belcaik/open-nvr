@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<RecordInfoByDay Version="1.0">
+    <RecordInfoList Version="1.0">
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>general</RecordType>
+            <StartTime>20261028000000</StartTime>
+            <EndTime>20261028001036</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>general</RecordType>
+            <StartTime>20261028001124</StartTime>
+            <EndTime>20261028004118</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>general</RecordType>
+            <StartTime>20261028004208</StartTime>
+            <EndTime>20261028005559</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>general</RecordType>
+            <StartTime>20261028005645</StartTime>
+            <EndTime>20261028010236</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>general</RecordType>
+            <StartTime>20261028010324</StartTime>
+            <EndTime>20261028010808</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>ai</RecordType>
+            <StartTime>20261028001036</StartTime>
+            <EndTime>20261028001124</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>ai</RecordType>
+            <StartTime>20261028004118</StartTime>
+            <EndTime>20261028004208</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>ai</RecordType>
+            <StartTime>20261028005559</StartTime>
+            <EndTime>20261028005645</EndTime>
+        </RecordInfo>
+        <RecordInfo Version="1.0">
+            <Channel>0</Channel>
+            <RecordType>ai</RecordType>
+            <StartTime>20261028010236</StartTime>
+            <EndTime>20261028010324</EndTime>
+        </RecordInfo>
+    </RecordInfoList>
+</RecordInfoByDay>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<NTP Version="1.0">
+    <Enable>true</Enable>
+    <ServerName>192.168.0.8</ServerName>
+    <TimeZone>CST--3:00:00</TimeZone>
+    <TimeSyncInterval>0</TimeSyncInterval>
+    <LastSuccessSyncNTPTime>2026/10/28 00:00:01</LastSuccessSyncNTPTime>
+    <SynchronizeNTPNowStatus>fail</SynchronizeNTPNowStatus>
+</NTP>
