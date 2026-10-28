@@ -1,0 +1,32 @@
+{
+ "avail": {
+  "http:api": {
+   "down": false,
+   "fails": 0,
+   "since": null
+  },
+  "tcp:80": {
+   "down": true,
+   "fails": 2,
+   "since": 1793008800.5
+  }
+ },
+ "last_baseline": 1793008800.5,
+ "last_scan": 1793008700.25,
+ "scan": {
+  "open": [
+   80,
+   554
+  ],
+  "ts": 1793008700.25
+ },
+ "throttle": {
+  "last": {
+   "down:tcp:80": 1793008800.5
+  },
+  "sent": [
+   1793008800.5
+  ],
+  "suppressed": 0
+ }
+}
