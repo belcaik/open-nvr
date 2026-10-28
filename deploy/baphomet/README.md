@@ -34,8 +34,11 @@ se hace por VPN.
 
 1. Descargar **solo** `deploy/baphomet/` del repositorio público (sparse
    checkout, sin el resto del código ni la documentación). Las imágenes se
-   construyen en GitHub Actions y se descargan de `ghcr.io/belcaik/open-nvr-*`,
-   así que en el servidor no se compila nada:
+   construyen en GitHub Actions y se descargan de GHCR, así que en el
+   servidor no se compila nada. `ghcr.io/belcaik/open-nvr` es una imagen Go
+   única (unos 11 MB) que ejecuta `nvr-watch`, `egress-watch` o `web` según
+   el `command:` del compose; `ulogd`, `dnsmasq`, `chrony` y `caddy` tienen
+   su propia imagen `ghcr.io/belcaik/open-nvr-<nombre>`:
 
    ```bash
    sudo git clone --depth 1 --filter=blob:none --sparse \
@@ -278,7 +281,7 @@ demuestran que el NVR realmente usa Baphomet:
    sudo podman-compose ps
    sudo podman logs --since 10m opennvr-ulogd
    sudo podman logs --since 10m opennvr-egress-watch
-   sudo podman exec opennvr-egress-watch python -m egresswatch summary
+   sudo podman exec opennvr-egress-watch /opennvr egress-watch summary
    ```
 
 Más detalles sobre alertas y límites están en `docs/monitoring.md`.

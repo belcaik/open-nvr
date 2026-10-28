@@ -37,7 +37,7 @@ que un endpoint fallido no parezca una eliminación masiva.
 El escaneo TCP periódico es secuencial, de bajo ritmo y solo contra el NVR.
 Su última lista válida de puertos se incorpora a la instantánea. La línea base
 vive en el volumen de `/data` y no cambia ante diferencias hasta ejecutar
-explícitamente `python -m nvrwatch accept`; una sección nunca vista sí se
+explícitamente `podman exec opennvr-nvr-watch /opennvr nvr-watch accept`; una sección nunca vista sí se
 incorpora automáticamente.
 
 ### nftables, ulogd y egress-watch
@@ -84,8 +84,8 @@ avisos sobreviven reinicios en el volumen `/data` de cada servicio.
 - **`línea base creada`**: primera instantánea válida; es informativo.
 - **`N cambios respecto a la línea base`**: firmware, identidad hasheada,
   red, P2P, NTP, cámaras o puertos cambiaron. Revisar con
-  `python -m nvrwatch show` y aceptar solo un cambio esperado con
-  `python -m nvrwatch accept`.
+  `podman exec opennvr-nvr-watch /opennvr nvr-watch show` y aceptar solo un cambio esperado con
+  `podman exec opennvr-nvr-watch /opennvr nvr-watch accept`.
 
 Los campos volátiles configurados en `IGNORE_PREFIXES` no provocan cambios de
 línea base. Los fallos de un endpoint se ven por disponibilidad, no como
