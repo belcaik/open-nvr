@@ -1,0 +1,11 @@
+# Bloque para añadir al Caddyfile del Caddy existente en Baphomet.
+# Requiere la imagen ghcr.io/belcaik/open-nvr-caddy y CF_API_TOKEN en su
+# entorno (token de Cloudflare con Zone.DNS:Edit solo para belcaik.com).
+nvr.belcaik.com {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+	@public not remote_ip private_ranges
+	respond @public 403
+	reverse_proxy 192.168.0.8:8095
+}
