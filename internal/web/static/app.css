@@ -59,3 +59,10 @@ output { font-size: 13px; min-height: 1.2em; }
   .camera { grid-template-columns: 1fr; }
   main { padding: 8px; }
 }
+
+.tile .overlay { position: absolute; inset: 0; z-index: 1; }
+.camera .tile .overlay { display: none; }
+a.button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+a.button:hover { border-color: var(--muted); }
+.panel .row button { flex: 1; }

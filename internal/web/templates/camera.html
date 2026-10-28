@@ -1,0 +1,55 @@
+{{define "content"}}
+{{with .Data.Error}}<p class="notice" role="alert">{{.}}</p>{{end}}
+{{$ch := .Data.Tile.Channel}}
+<section class="camera">
+  <div class="tile" data-cam="{{$ch}}" data-quality="main">
+    <span class="name"><span class="dot {{if .Data.Tile.Online}}ok{{else if .Data.Tile.Known}}bad{{end}}"></span>Cámara {{$ch}}{{with .Data.Tile.LoginStatus}} · {{.}}{{end}}</span>
+    <div class="video"></div>
+  </div>
+
+  <aside class="panel">
+    <h2>Movimiento</h2>
+    <div class="pad">
+      <button data-ch="{{$ch}}" data-ptz="TurnUpLeft" aria-label="Arriba izquierda">↖</button>
+      <button data-ch="{{$ch}}" data-ptz="TurnUp" aria-label="Arriba">↑</button>
+      <button data-ch="{{$ch}}" data-ptz="TurnUpRight" aria-label="Arriba derecha">↗</button>
+      <button data-ch="{{$ch}}" data-ptz="TurnLeft" aria-label="Izquierda">←</button>
+      <span></span>
+      <button data-ch="{{$ch}}" data-ptz="TurnRight" aria-label="Derecha">→</button>
+      <button data-ch="{{$ch}}" data-ptz="TurnDownLeft" aria-label="Abajo izquierda">↙</button>
+      <button data-ch="{{$ch}}" data-ptz="TurnDown" aria-label="Abajo">↓</button>
+      <button data-ch="{{$ch}}" data-ptz="TurnDownRight" aria-label="Abajo derecha">↘</button>
+    </div>
+    <div class="row">
+      <button data-ch="{{$ch}}" data-ptz="ZoomOut">Zoom −</button>
+      <button data-ch="{{$ch}}" data-ptz="ZoomIn">Zoom +</button>
+      <button data-ch="{{$ch}}" data-ptz="FocusNear">Foco −</button>
+      <button data-ch="{{$ch}}" data-ptz="FocusFar">Foco +</button>
+    </div>
+    <label class="row">Velocidad <input id="ptz-speed" type="range" min="1" max="10" value="5"></label>
+
+    <h2>Presets</h2>
+    <form class="row" hx-target="#ptz-result" hx-swap="innerHTML">
+      <input id="preset" name="preset" type="number" min="1" max="256" value="1" aria-label="Número de preset">
+      <button type="button" data-preset="goto">Ir</button>
+      <button type="button" data-preset="set">Guardar</button>
+      <button type="button" data-preset="remove">Borrar</button>
+    </form>
+
+    <h2>Accesorios</h2>
+    <div class="row" hx-target="#ptz-result" hx-swap="innerHTML">
+      <button hx-post="/api/ptz/{{$ch}}/light/on">Luz sí</button>
+      <button hx-post="/api/ptz/{{$ch}}/light/off">Luz no</button>
+      <button hx-post="/api/ptz/{{$ch}}/wiper/on">Limpiar sí</button>
+      <button hx-post="/api/ptz/{{$ch}}/wiper/off">Limpiar no</button>
+    </div>
+    <div class="row">
+      <a class="button" href="/camera/{{$ch}}/snapshot" target="_blank" rel="noopener">Captura</a>
+      <a class="button" href="/">Volver</a>
+    </div>
+    <output id="ptz-result" aria-live="polite"></output>
+  </aside>
+</section>
+{{end}}
+{{define "scripts"}}<script type="module" src="/static/js/video.js"></script>
+<script type="module" src="/static/js/ptz.js"></script>{{end}}

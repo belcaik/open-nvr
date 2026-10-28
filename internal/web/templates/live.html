@@ -1,7 +1,15 @@
 {{define "content"}}
+{{with .Data.Error}}<p class="notice" role="alert">{{.}}</p>{{end}}
 <section class="grid">
-{{range .Data.Channels}}
-  <a class="tile" href="/camera/{{.}}"><span class="name">Cámara {{.}}</span></a>
+{{range .Data.Tiles}}
+  <div class="tile" data-cam="{{.Channel}}" data-quality="sub">
+    <a class="name" href="/camera/{{.Channel}}">
+      <span class="dot {{if .Online}}ok{{else if .Known}}bad{{end}}"></span>Cámara {{.Channel}}
+    </a>
+    <a class="overlay" href="/camera/{{.Channel}}" aria-label="Abrir cámara {{.Channel}}"></a>
+    <div class="video"></div>
+  </div>
 {{end}}
 </section>
 {{end}}
+{{define "scripts"}}<script type="module" src="/static/js/video.js"></script>{{end}}

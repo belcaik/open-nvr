@@ -11,11 +11,21 @@ import (
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/auth"
+	"github.com/belcaik/open-nvr/internal/nvr"
 )
 
-// CameraService es lo que la web necesita del dominio de cámaras.
+// CameraService es lo que la web necesita del dominio de cámaras
+// (lo implementa camera.Service).
 type CameraService interface {
 	Health(ctx context.Context) error
+	Cameras(ctx context.Context) ([]nvr.Camera, error)
+	Snapshot(ctx context.Context, ch int) ([]byte, error)
+	PTZStart(ctx context.Context, ch int, cmd nvr.PTZCommand, speed int) error
+	PTZKeepalive(ch int) bool
+	PTZStop(ctx context.Context, ch int) error
+	Preset(ctx context.Context, ch int, action nvr.PresetAction, idx int) error
+	Light(ctx context.Context, ch int, on bool) error
+	Wiper(ctx context.Context, ch int, on bool) error
 }
 
 type Deps struct {

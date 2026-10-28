@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -12,11 +13,66 @@ import (
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/auth"
+	"github.com/belcaik/open-nvr/internal/nvr"
 )
 
-type fakeCameras struct{ healthErr error }
+type fakeCameras struct {
+	healthErr error
+	camsErr   error
+	opErr     error
+	active    map[int]bool
+	calls     []string
+}
 
 func (f *fakeCameras) Health(context.Context) error { return f.healthErr }
+
+func (f *fakeCameras) Cameras(context.Context) ([]nvr.Camera, error) {
+	if f.camsErr != nil {
+		return nil, f.camsErr
+	}
+	return []nvr.Camera{{Channel: 1, Online: true, LoginStatus: "weak password"},
+		{Channel: 2, Online: true}, {Channel: 3, Online: true}, {Channel: 4, Online: false, LoginStatus: "offline"}}, nil
+}
+
+func (f *fakeCameras) Snapshot(_ context.Context, ch int) ([]byte, error) {
+	f.calls = append(f.calls, fmt.Sprintf("snapshot %d", ch))
+	return []byte("\xff\xd8jpeg"), f.opErr
+}
+
+func (f *fakeCameras) PTZStart(_ context.Context, ch int, cmd nvr.PTZCommand, speed int) error {
+	f.calls = append(f.calls, fmt.Sprintf("start %d %s %d", ch, cmd, speed))
+	if f.opErr != nil {
+		return f.opErr
+	}
+	if f.active == nil {
+		f.active = map[int]bool{}
+	}
+	f.active[ch] = true
+	return nil
+}
+
+func (f *fakeCameras) PTZKeepalive(ch int) bool { return f.active[ch] }
+
+func (f *fakeCameras) PTZStop(_ context.Context, ch int) error {
+	f.calls = append(f.calls, fmt.Sprintf("stop %d", ch))
+	delete(f.active, ch)
+	return nil
+}
+
+func (f *fakeCameras) Preset(_ context.Context, ch int, a nvr.PresetAction, idx int) error {
+	f.calls = append(f.calls, fmt.Sprintf("preset %d %s %d", ch, a, idx))
+	return f.opErr
+}
+
+func (f *fakeCameras) Light(_ context.Context, ch int, on bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("light %d %v", ch, on))
+	return f.opErr
+}
+
+func (f *fakeCameras) Wiper(_ context.Context, ch int, on bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("wiper %d %v", ch, on))
+	return f.opErr
+}
 
 type env struct {
 	h     http.Handler
@@ -47,6 +103,9 @@ func newEnv(t *testing.T) *env {
 		Cameras: cams, Sessions: sess, Limiter: auth.NewLimiter(5, 15*time.Minute, nowFn),
 		PassHash: testHash, User: "admin", Channels: []int{1, 2, 3, 4},
 		TrustedProxies: []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")},
+		Media: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("proxy " + r.URL.Query().Get("src")))
+		}),
 	})
 	return &env{h: h, sess: sess, clock: clock, cams: cams}
 }
