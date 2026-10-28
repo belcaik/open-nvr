@@ -173,10 +173,75 @@ services:
       retries: 3
       start_period: 10s
 
+  # Interfaz web: login, directo, PTZ. Red del host para escuchar solo en
+  # WEB_LISTEN (192.168.0.8:8095, accesible únicamente desde el propio host
+  # según nftables) y llegar a la API de go2rtc por loopback.
+  web:
+    container_name: opennvr-web
+    image: ghcr.io/belcaik/open-nvr:${OPENNVR_TAG:-latest}
+    command: ["web"]
+    network_mode: host
+    env_file: .env
+    environment:
+      NVR_PASS_FILE: /run/secrets/nvr_pass
+      WEB_PASSWORD_HASH_FILE: /run/secrets/web_password_hash
+      WEB_SESSION_KEY_FILE: /run/secrets/web_session_key
+      GO2RTC_CONFIG: /config/go2rtc.yaml
+    secrets:
+      - nvr_pass
+      - web_password_hash
+      - web_session_key
+    volumes:
+      - go2rtc_config:/config
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "/opennvr healthcheck --url http://$${WEB_LISTEN:-127.0.0.1:8095}/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Reparte el vídeo del NVR (una conexión RTSP por cámara y calidad) al
+  # navegador por WebRTC/MSE. Su API solo escucha en 127.0.0.1:1984; la
+  # configuración la genera opennvr-web con las credenciales del NVR.
+  go2rtc:
+    container_name: opennvr-go2rtc
+    image: docker.io/alexxit/go2rtc:${GO2RTC_TAG:-1.9.15-hardware}
+    command: ["go2rtc", "-config", "/config/go2rtc.yaml"]
+    network_mode: host
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    volumes:
+      - go2rtc_config:/config:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Sin healthcheck propio (la imagen -hardware no garantiza wget/curl):
+    # opennvr-web consulta su API y lo muestra en la barra de estado.
+
 secrets:
   nvr_pass:
     external: true
   ntfy_token:
+    external: true
+  web_password_hash:
+    external: true
+  web_session_key:
     external: true
 
 volumes:
@@ -186,3 +251,4 @@ volumes:
   dnsmasq_logs:
   ntfy_cache:
   ntfy_data:
+  go2rtc_config:
