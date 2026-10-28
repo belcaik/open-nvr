@@ -66,3 +66,5 @@ a.button { display: inline-flex; align-items: center; min-height: 44px; padding:
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 a.button:hover { border-color: var(--muted); }
 .panel .row button { flex: 1; }
+.tile.empty { display: grid; place-items: center; color: var(--muted); }
+.tile.empty p { margin: 0; font-size: 13px; }

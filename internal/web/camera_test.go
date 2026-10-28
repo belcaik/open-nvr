@@ -40,6 +40,16 @@ func TestLiveListsCameras(t *testing.T) {
 	}
 }
 
+func TestLiveSkipsVideoForEmptyChannels(t *testing.T) {
+	e := newEnv(t)
+	e.cams.only1 = true
+	body := e.do(e.authed(t, "GET", "/", nil)).Body.String()
+	if !strings.Contains(body, `data-cam="1"`) || strings.Contains(body, `data-cam="2"`) ||
+		strings.Count(body, "Sin cámara conectada") != 3 {
+		t.Fatal(body)
+	}
+}
+
 func TestLiveNVRDown(t *testing.T) {
 	e := newEnv(t)
 	e.cams.camsErr = nvr.ErrUnavailable

@@ -19,6 +19,7 @@ import (
 type fakeCameras struct {
 	healthErr error
 	camsErr   error
+	only1     bool
 	opErr     error
 	active    map[int]bool
 	calls     []string
@@ -29,6 +30,9 @@ func (f *fakeCameras) Health(context.Context) error { return f.healthErr }
 func (f *fakeCameras) Cameras(context.Context) ([]nvr.Camera, error) {
 	if f.camsErr != nil {
 		return nil, f.camsErr
+	}
+	if f.only1 {
+		return []nvr.Camera{{Channel: 1, Online: true}}, nil
 	}
 	return []nvr.Camera{{Channel: 1, Online: true, LoginStatus: "weak password"},
 		{Channel: 2, Online: true}, {Channel: 3, Online: true}, {Channel: 4, Online: false, LoginStatus: "offline"}}, nil

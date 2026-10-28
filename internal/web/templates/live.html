@@ -2,6 +2,9 @@
 {{with .Data.Error}}<p class="notice" role="alert">{{.}}</p>{{end}}
 <section class="grid">
 {{range .Data.Tiles}}
+  {{/* Sin cámara registrada no se pide vídeo: go2rtc reintentaría el canal
+       vacío sin parar y el NVR acumularía sesiones RTSP colgadas. */}}
+  {{if or .Known $.Data.Error}}
   <div class="tile" data-cam="{{.Channel}}" data-quality="sub">
     <a class="name" href="/camera/{{.Channel}}">
       <span class="dot {{if .Online}}ok{{else if .Known}}bad{{end}}"></span>Cámara {{.Channel}}
@@ -9,6 +12,12 @@
     <a class="overlay" href="/camera/{{.Channel}}" aria-label="Abrir cámara {{.Channel}}"></a>
     <div class="video"></div>
   </div>
+  {{else}}
+  <div class="tile empty">
+    <span class="name"><span class="dot"></span>Cámara {{.Channel}}</span>
+    <p>Sin cámara conectada en este canal</p>
+  </div>
+  {{end}}
 {{end}}
 </section>
 {{end}}
