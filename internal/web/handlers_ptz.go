@@ -123,7 +123,12 @@ func (s *server) ptzSwitch(w http.ResponseWriter, r *http.Request) {
 	switch r.PathValue("device") {
 	case "light":
 		err = s.d.Cameras.Light(r.Context(), ch, on)
-		label = map[bool]string{true: "Luz encendida", false: "Luz apagada"}[on]
+		// La orden se confirma al instante, pero la cámara cambia de modo con
+		// retraso: unos 6 s para pasar a color y hasta 25 s para volver a IR.
+		label = map[bool]string{
+			true:  "Luz encendida: la imagen cambia en unos 6 s",
+			false: "Luz apagada: la imagen vuelve a infrarrojo en 15-25 s",
+		}[on]
 	case "wiper":
 		err = s.d.Cameras.Wiper(r.Context(), ch, on)
 		label = map[bool]string{true: "Limpiaparabrisas encendido", false: "Limpiaparabrisas apagado"}[on]
