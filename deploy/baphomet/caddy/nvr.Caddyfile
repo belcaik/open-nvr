@@ -5,6 +5,10 @@ nvr.belcaik.com {
 	tls {
 		dns cloudflare {env.CF_API_TOKEN}
 	}
+	# Solo LAN. El tráfico de los túneles de Cloudflare de Baphomet llega
+	# desde localhost (parecería privado), pero siempre trae Cf-Ray.
+	@tunnel header Cf-Ray *
+	respond @tunnel 403
 	@public not remote_ip private_ranges
 	respond @public 403
 	reverse_proxy 192.168.0.8:8095

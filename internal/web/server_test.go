@@ -230,6 +230,18 @@ func TestPublicIPForbidden(t *testing.T) {
 	}
 }
 
+func TestCloudflareTunnelForbidden(t *testing.T) {
+	e := newEnv(t)
+	for _, h := range []string{"Cf-Ray", "Cf-Connecting-Ip"} {
+		req := httptest.NewRequest("GET", "/login", nil)
+		req.RemoteAddr = "127.0.0.1:1234"
+		req.Header.Set(h, "x")
+		if rec := e.do(req); rec.Code != http.StatusForbidden {
+			t.Fatalf("%s: %d", h, rec.Code)
+		}
+	}
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	e := newEnv(t)
 	rec := e.do(httptest.NewRequest("GET", "/login", nil))

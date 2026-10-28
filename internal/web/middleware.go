@@ -60,9 +60,16 @@ func (s *server) trusted(a netip.Addr) bool {
 	return false
 }
 
-// privateOnly rechaza clientes con IP pública (defensa además de Caddy).
+// privateOnly rechaza clientes con IP pública (defensa además de Caddy) y
+// cualquier petición que haya pasado por un túnel de Cloudflare: en
+// Baphomet hay túneles activos, y su tráfico llega desde localhost, así que
+// la IP de origen no basta para distinguirlo.
 func (s *server) privateOnly(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Cf-Ray") != "" || r.Header.Get("Cf-Connecting-Ip") != "" {
+			http.Error(w, "Acceso solo desde la red local", http.StatusForbidden)
+			return
+		}
 		ip := s.clientIP(r)
 		if !ip.IsValid() || !(ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()) {
 			http.Error(w, "Acceso solo desde la red local", http.StatusForbidden)
