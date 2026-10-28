@@ -1,0 +1,64 @@
+{
+ "agg": {
+  "daily": {
+   "dns": {
+    "erp.zwcloud.wang": 1
+   },
+   "dns_nx": {},
+   "drop_packets": 1,
+   "flows": {
+    "drop|out|203.0.113.5|32100|udp": [
+     1,
+     76
+    ],
+    "fwd|out|203.0.113.9|8090|tcp": [
+     1,
+     60
+    ]
+   },
+   "fwd_bytes": 60,
+   "fwd_packets": 1,
+   "new": 3
+  },
+  "dnsmap": {
+   "203.0.113.9": "erp.zwcloud.wang"
+  },
+  "ewma": null,
+  "known": {
+   "dns|erp.zwcloud.wang": 1793010000.0,
+   "drop|out|203.0.113.5|32100|udp": 1793010000.0,
+   "fwd|out|203.0.113.9|8090|tcp": 1793010000.0
+  },
+  "last_event": 1793010000.0,
+  "last_summary_date": "2026-10-27",
+  "pending_new": [],
+  "silence_alerted": false,
+  "window": {
+   "by_key": {
+    "fwd|out|203.0.113.9|8090|tcp": 60
+   },
+   "bytes": 60,
+   "packets": 1,
+   "start": 1793010000.0
+  }
+ },
+ "tails": {
+  "testdata/egresswatch/.python-fixture/dnsmasq.log": {
+   "inode": 12345,
+   "offset": 185
+  },
+  "testdata/egresswatch/.python-fixture/ulog.json": {
+   "inode": 12345,
+   "offset": 323
+  }
+ },
+ "throttle": {
+  "last": {
+   "new:4294af1cc9b6c6cf": 1793010000.0
+  },
+  "sent": [
+   1793010000.0
+  ],
+  "suppressed": 0
+ }
+}
