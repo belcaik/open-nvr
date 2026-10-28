@@ -52,6 +52,7 @@ type Client struct {
 	pass string
 	hc   *http.Client
 	sem  chan struct{}
+	loc  *time.Location
 }
 
 // New crea un cliente para base ("http://host:port") con auth Basic.
@@ -62,7 +63,17 @@ func New(base, user, pass string) *Client {
 		pass: pass,
 		hc:   &http.Client{},
 		sem:  make(chan struct{}, 2),
+		loc:  time.Local,
 	}
+}
+
+// WithLocation configura la zona local usada por las horas del NVR.
+func (c *Client) WithLocation(loc *time.Location) *Client {
+	if loc == nil {
+		loc = time.Local
+	}
+	c.loc = loc
+	return c
 }
 
 // do ejecuta una petición respetando el semáforo de concurrencia y el
