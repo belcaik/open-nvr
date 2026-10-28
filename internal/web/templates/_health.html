@@ -1,0 +1,5 @@
+{{if or .Data.NVR .Data.Video -}}
+<span class="dot bad"></span>{{with .Data.NVR}}<span>{{.}}</span>{{end}}{{with .Data.Video}}<span>{{.}}</span>{{end}}
+{{- else -}}
+<span class="dot ok"></span><span>Todo en orden</span>
+{{- end}}

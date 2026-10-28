@@ -1,0 +1,7 @@
+{{define "content"}}
+<section class="grid">
+{{range .Data.Channels}}
+  <a class="tile" href="/camera/{{.}}"><span class="name">Cámara {{.}}</span></a>
+{{end}}
+</section>
+{{end}}

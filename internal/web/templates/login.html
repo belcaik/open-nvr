@@ -1,0 +1,9 @@
+{{define "content"}}
+<form class="login" method="post" action="/login">
+  <h1>open-nvr</h1>
+  {{with .Data}}<p class="error" role="alert">{{.}}</p>{{end}}
+  <label>Usuario <input name="username" autocomplete="username" required autofocus></label>
+  <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Entrar</button>
+</form>
+{{end}}

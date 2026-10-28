@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false}'>
+<title>{{if .Title}}{{.Title}} · {{end}}open-nvr</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/vendor/htmx.min.js" defer></script>
+</head>
+<body{{if .CSRF}} hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'{{end}}>
+{{if .User}}
+<header class="bar">
+  <a class="brand" href="/">open-nvr</a>
+  <div id="status" hx-get="/api/health" hx-trigger="load, every 15s" hx-swap="innerHTML"></div>
+  <form method="post" action="/logout">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <button class="link" type="submit">Salir</button>
+  </form>
+</header>
+{{end}}
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>
