@@ -125,8 +125,13 @@ documento cubre el diseño de todas, y el primer plan cubre las fases 1 y 2.
   (`web_password_hash`). La clave de firma de cookies es otro secreto
   (`web_session_key`, 32 bytes aleatorios).
 - Cookie de sesión `HttpOnly`, `Secure`, `SameSite=Strict`, firmada con
-  HMAC-SHA256, que caduca tras 7 días sin uso. Las sesiones se guardan en
-  memoria: al reiniciar hay que volver a iniciar sesión.
+  HMAC-SHA256 con `web_session_key`. Las sesiones no guardan estado en el
+  servidor: la cookie lleva el usuario, la fecha de emisión, el último uso y
+  un identificador aleatorio de sesión, del que sale el token CSRF. Por eso
+  sobreviven a reinicios y redespliegues. Caducan tras 7 días sin uso o 30
+  días desde la emisión, y la cookie se renueva como mucho una vez por hora.
+  Cerrar sesión borra la cookie. Para invalidar todas las sesiones se rota el
+  secreto `web_session_key`.
 - CSRF: token por sesión en la cabecera `X-CSRF-Token`, que htmx envía con
   `hx-headers`. Se exige en todo método distinto de GET.
 - Límite de login: 5 intentos fallidos por IP en 15 minutos.
@@ -171,9 +176,14 @@ documento cubre el diseño de todas, y el primer plan cubre las fases 1 y 2.
 - UI: cada parcial htmx muestra su propio error sin romper la página. Una
   barra de estado global consulta `/api/health` y avisa si el NVR o go2rtc no
   responden.
-- PTZ: el movimiento continuo envía `Param1=1` al pulsar y `Param1=0` al
-  soltar. El servidor envía también un stop de seguridad si no recibe nada en
-  2 s.
+- PTZ, con stop de seguridad obligatorio: al pulsar, el navegador envía
+  `start` y luego un `keepalive` cada 500 ms mientras se mantiene pulsado. Al
+  soltar, al perder el foco o al ocultarse la página (`pointerup`,
+  `pointercancel`, `blur`, `visibilitychange`) envía `stop`. En el servidor,
+  un vigilante por canal envía `Param1=0` al comando activo si pasan 1,5 s
+  sin `keepalive`, si el stop del navegador falla o si se cierra el proceso
+  (con `SIGTERM` se detiene todo). Si un `Param1=0` falla, se reintenta 3
+  veces. Tiene tests con reloj falso.
 - go2rtc se encarga de reconectar el RTSP, y `video.js` reintenta con espera
   creciente.
 
