@@ -145,12 +145,11 @@ documento cubre el diseño de todas, y el primer plan cubre las fases 1 y 2.
   certificados. Desaparecen las imágenes `open-nvr-nvr-watch` y
   `open-nvr-egress-watch`.
 - **Compose:** los servicios `nvr-watch` y `egress-watch` usan la imagen
-  única con `command:` distinto. Se añaden `web` y `go2rtc`, y las
-  comprobaciones de salud se escriben como `CMD-SHELL` (limitación de
-  podman-compose 1.0.6). `distroless` no tiene shell, así que el binario
-  ofrece `opennvr healthcheck <subcomando>` y se usa la forma `CMD` sin shell.
-  Hay que verificar con el entorno de prueba de podman-compose 1.0.6 que esa
-  forma no se estropea. Si se estropea, se usa una base `busybox`.
+  única con `command:` distinto. Se añaden `web` y `go2rtc`. Las
+  comprobaciones de salud usan `opennvr healthcheck <subcomando>`, porque
+  `distroless` no tiene shell. podman-compose 1.0.6 estropea la forma `CMD`
+  con varios argumentos, así que antes hay que verificarla con su entorno de
+  prueba. Si falla, la base pasa a `busybox:musl` y se usa `CMD-SHELL`.
 - **Caddy:** CI construye la imagen `ghcr.io/belcaik/open-nvr-caddy` con
   xcaddy y `github.com/caddy-dns/cloudflare`, y sustituye la imagen del Caddy
   actual en `/opt/services/caddy`, que sigue sirviendo `mcp-memory`. El token
