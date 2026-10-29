@@ -42,7 +42,7 @@ versiona. Leyenda al final.
 | 554/tcp | RTSP `RtpRtspFlyer` (Digest `realm="turing"` y Basic) | ✅ |
 | 6060/tcp | Protocolo privado P6S, comandos (`Port/Command`) | ✅ Abierto; protocolo sin documentar |
 | 6066/tcp | Protocolo privado P6S, medios (`Port/Media`) | ✅ Abierto; protocolo sin documentar |
-| 8885/tcp, 9000/tcp | Desconocidos: aceptan conexión, sin banner ni HTTP | ❓ |
+| 8885/tcp, 9000/tcp | Desconocidos: aceptan conexión, sin banner; cierran ante HTTP, `LoginGetFlag` P6S y `OPTIONS` RTSP | ❓ |
 | 3702/udp, 5555/udp, 32108/udp | `open\|filtered`. 3702 no responde a WS-Discovery; 5555 es `Port/Discovery`; 32108 se asocia a P2P (hipótesis) | 🟡 |
 | ONVIF | **No disponible** | ✅ Descartado (test-log T10–T11) |
 
