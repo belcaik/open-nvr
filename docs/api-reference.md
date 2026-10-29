@@ -137,6 +137,13 @@ Clases: **READ** = GET sin efecto lateral aparente; **WRITE-REVERSIBLE** = cambi
 
 `ProtocolType` se obtiene del `Type0` de `/Protocol.html`; la UI muestra ese protocolo privado con su `Name0`, añade explícitamente `6 = ONVIF`, y para alta RTSP fuerza `ProtocolType=6`, `RtspConnectFlag=true`, guardando `RtspUrl` y `Domain` (substream) codificados en Base64 (`videoManagement.js:267-281,516-566`). No se puede concluir que el valor privado sea siempre `3`, aunque el render lo etiqueta con el nombre privado cuando vale `3` (`videoManagement.js:837-840`). `ActionState` observado: `manual_add`, `auto_add`, `modify`, `delete`.
 
+`weak password` es sólo un estado mostrado en la tabla; no abre una operación de
+cambio de clave. El `PUT` con `ActionState=modify` actualiza la credencial que el
+NVR guarda para autenticarse contra la IPC. No contiene contraseña antigua/nueva
+ni una acción de cambio dentro de la cámara, y el análisis estático de EasyVideo
+no encontró otra operación demostrada para ello. Cambiar sólo este registro con
+una clave que la IPC no tenga producirá `login failed`.
+
 ## 1. PTZ, zoom, foco, iris y presets
 
 El preview **no usa WebSocket para PTZ** en los archivos presentes: toma el `id` HTML del botón y hace `PUT /PTZ/{ch}/{cmd}`. Los comandos exactos son:
