@@ -272,7 +272,9 @@ a H.264 para el navegador. `PLAYBACK_SOURCE_BASE_URL` es opcional y por defecto
 usa `http://<WEB_LISTEN>/internal/playback`; sólo hace falta cambiarlo si go2rtc
 debe alcanzar esa fuente por otra dirección. En **Directo > Cámara**, **Mantener
 Hablar** captura el micrófono durante la pulsación y lo libera al soltar; requiere
-HTTPS o localhost y permiso del navegador.
+HTTPS o localhost y permiso del navegador. **Incidencia conocida (2026-10-30):**
+el propietario confirma que las grabaciones se ven, pero el envío real de audio
+a las cámaras falla y permanece pendiente de diagnóstico.
 
 El cambio de contraseña interna de una IPC sigue sin exponerse: todavía no hay
 una captura que demuestre el comando y el destino correctos. Editar sólo la
