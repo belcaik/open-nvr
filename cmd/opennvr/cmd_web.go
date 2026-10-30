@@ -22,6 +22,11 @@ import (
 	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/media"
 	"github.com/belcaik/open-nvr/internal/nvr"
+	"github.com/belcaik/open-nvr/internal/p6s/history"
+	"github.com/belcaik/open-nvr/internal/p6s/voice"
+	"github.com/belcaik/open-nvr/internal/p6sclient"
+	"github.com/belcaik/open-nvr/internal/playback"
+	"github.com/belcaik/open-nvr/internal/talk"
 	"github.com/belcaik/open-nvr/internal/web"
 )
 
@@ -90,6 +95,42 @@ func serveWeb() error {
 	go hub.Run(ctx, client.Events, channels)
 
 	web.AssetVersion = version
+	listen := config.Str("WEB_LISTEN", "127.0.0.1:8095")
+	mediaProxy := media.NewProxy(apiListen, channels)
+	streams, err := media.NewGo2RTCStreams(apiListen, nil)
+	if err != nil {
+		return err
+	}
+	p6sConnector := p6sclient.Connector{Config: p6sclient.Config{
+		Host: host, CommandPort: config.Int("NVR_P6S_PORT", 6060), Username: user, Password: pass,
+	}}
+	playbackManager, err := playback.NewManager(ctx, playback.Config{
+		OpenSession: func(ctx context.Context, _ playback.Request) (playback.Session, error) {
+			commandConn, mediaConn, err := p6sConnector.OpenAuthenticated(ctx)
+			if err != nil {
+				return nil, err
+			}
+			session, err := history.NewSession(context.WithoutCancel(ctx), commandConn, mediaConn)
+			if err != nil {
+				_ = commandConn.Close()
+				_ = mediaConn.Close()
+				return nil, err
+			}
+			return session, nil
+		},
+		Streams: streams, Authorizer: mediaProxy,
+		SourceBaseURL: config.Str("PLAYBACK_SOURCE_BASE_URL", "http://"+listen+"/internal/playback"), Channels: channels,
+	})
+	if err != nil {
+		return fmt.Errorf("playback: %w", err)
+	}
+	defer playbackManager.Close()
+	extension, err := voice.CapturedAudioExtension()
+	if err != nil {
+		return fmt.Errorf("voz: %w", err)
+	}
+	talker := talk.New(p6sConnector)
+	talker.VoiceConfig.Extension = extension
 	handler := web.NewServer(web.Deps{
 		Cameras: &camera.Service{NVR: client, Guard: guard},
 		Sessions: &auth.Sessions{Key: key, Idle: 7 * 24 * time.Hour, MaxAge: 30 * 24 * time.Hour,
@@ -97,17 +138,19 @@ func serveWeb() error {
 		Limiter:        auth.NewLimiter(5, 15*time.Minute, time.Now),
 		PassHash:       passHash,
 		User:           config.Str("WEB_USER", "admin"),
-		Media:          media.NewProxy(apiListen, channels),
+		Media:          mediaProxy,
+		Playback:       playbackManager,
+		PlaybackSource: playbackManager.SourceHandler(),
 		Go2RTCHealth:   go2rtcHealth(apiListen),
 		TrustedProxies: trusted,
 		Channels:       channels,
 		Config:         client,
 		Recordings:     client,
 		Events:         hub,
+		Talk:           talker,
 		Location:       loc,
 		FailDelay:      500 * time.Millisecond,
 	})
-	listen := config.Str("WEB_LISTEN", "127.0.0.1:8095")
 	srv := &http.Server{Addr: listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()

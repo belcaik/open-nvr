@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/p6s"
@@ -19,14 +20,15 @@ type Session struct {
 	commandConn net.Conn
 	mediaConn   net.Conn
 
-	mu             sync.Mutex
-	commandWriteMu sync.Mutex
-	mediaMu        sync.Mutex
-	sequence       uint32
-	mediaFlag      uint32
-	responses      chan commandResponse
-	closed         chan struct{}
-	closeOnce      sync.Once
+	mu              sync.Mutex
+	commandWriteMu  sync.Mutex
+	mediaMu         sync.Mutex
+	sequence        uint32
+	mediaFlag       uint32
+	historyDataFlow atomic.Uint64
+	responses       chan commandResponse
+	closed          chan struct{}
+	closeOnce       sync.Once
 }
 
 type commandResponse struct {
@@ -206,6 +208,7 @@ func (s *Session) ReadMediaFrame(ctx context.Context) (p6s.MediaFrame, error) {
 		}
 		return p6s.MediaFrame{}, sessionContextError(ctx, err)
 	}
+	s.historyDataFlow.Add(uint64(len(frame.Payload)))
 	return frame, nil
 }
 
@@ -303,7 +306,7 @@ func (s *Session) readCommands() {
 			s.deliverResponse(commandResponse{err: errors.New("history: heartbeat inválido")})
 			return
 		}
-		heartbeatReply := wirePayload([]byte(`<Command ID="79"><HeartBeatNoticeReply CmdReply="0" NetDataFlow="0" NetHistoryDataFlow="0"></HeartBeatNoticeReply></Command>`))
+		heartbeatReply := wirePayload([]byte(fmt.Sprintf(`<Command ID="79"><HeartBeatNoticeReply CmdReply="0" NetDataFlow="0" NetHistoryDataFlow="%d"></HeartBeatNoticeReply></Command>`, s.historyDataFlow.Swap(0))))
 		s.commandWriteMu.Lock()
 		err = p6s.WriteCommand(s.commandConn, p6s.Command{Sequence: command.Sequence, XML: heartbeatReply})
 		s.commandWriteMu.Unlock()

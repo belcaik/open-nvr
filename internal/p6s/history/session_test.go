@@ -234,6 +234,62 @@ func TestSessionAnswersHeartbeatWhileIdle(t *testing.T) {
 	}
 }
 
+func TestSessionHeartbeatReportsAndResetsHistoryFlow(t *testing.T) {
+	commandClient, commandServer := net.Pipe()
+	mediaClient, mediaServer := net.Pipe()
+	defer commandServer.Close()
+	defer mediaServer.Close()
+
+	session, err := NewSession(context.Background(), commandClient, mediaClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	mediaErr := make(chan error, 1)
+	go func() {
+		mediaErr <- p6s.WriteMediaFrame(mediaServer, p6s.MediaFrame{Extension: make([]byte, 44), Payload: []byte{1, 2, 3, 4}})
+	}()
+	if _, err := session.ReadMediaFrame(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-mediaErr; err != nil {
+		t.Fatal(err)
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		for _, step := range []struct {
+			sequence uint32
+			flow     string
+		}{{92, "4"}, {93, "0"}} {
+			if err := p6s.WriteCommand(commandServer, p6s.Command{Sequence: step.sequence, XML: []byte(`<Command ID="78"><HeartBeatNotice UserData="0"></HeartBeatNotice></Command>`)}); err != nil {
+				result <- err
+				return
+			}
+			reply, err := p6s.ReadCommand(commandServer)
+			if err != nil {
+				result <- err
+				return
+			}
+			want := capturedWireXML(`<Command ID="79"><HeartBeatNoticeReply CmdReply="0" NetDataFlow="0" NetHistoryDataFlow="` + step.flow + `"></HeartBeatNoticeReply></Command>`)
+			if reply.Sequence != step.sequence || string(reply.XML) != want {
+				result <- fmt.Errorf("heartbeat flow = %s, want %s", reply.XML, want)
+				return
+			}
+		}
+		result <- nil
+	}()
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("history flow heartbeat was not answered")
+	}
+}
+
 func TestSessionCancellationClosesUncertainExchange(t *testing.T) {
 	commandClient, commandServer := net.Pipe()
 	mediaClient, mediaServer := net.Pipe()

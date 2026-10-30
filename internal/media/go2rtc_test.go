@@ -18,6 +18,8 @@ webrtc:
     - "192.168.0.8:8555"
 log:
   level: warn
+ffmpeg:
+  hevc: "-f hevc -i {input}"
 streams:
   cam1: "rtsp://admin:p%40ss%3Aw%2Frd@192.168.0.227:554/live/1/MAIN#transport=tcp"
   cam1_sub: "rtsp://admin:p%40ss%3Aw%2Frd@192.168.0.227:554/live/1/SUB#transport=tcp"

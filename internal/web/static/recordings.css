@@ -1,0 +1,11 @@
+.segments li { display: flex; align-items: center; gap: 6px; }
+.segments li > span:nth-child(2) { flex: 1; }
+.play-recording { padding: 5px 9px; }
+.recording-player { margin-top: 14px; display: grid; gap: 10px; }
+.recording-player[hidden] { display: none; }
+.recording-video { min-height: 240px; background: #000; border-radius: var(--radius); overflow: hidden; }
+.recording-video opennvr-recording { display: block; aspect-ratio: 16 / 9; }
+.recording-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.recording-controls label { display: flex; gap: 6px; align-items: center; flex: 1; }
+.recording-controls input { width: 100%; min-width: 140px; }
+#recording-state { color: var(--muted); min-width: 100px; }

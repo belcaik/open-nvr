@@ -44,7 +44,7 @@ func Render(c Config) string {
 	// go2rtc; solo escucha en loopback.
 	b.WriteString("rtsp:\n  listen: \"127.0.0.1:8554\"\n")
 	fmt.Fprintf(&b, "webrtc:\n  listen: %s\n  candidates:\n    - %s\n", q(c.WebRTCListen), q(c.Candidate))
-	b.WriteString("log:\n  level: warn\nstreams:\n")
+	b.WriteString("log:\n  level: warn\nffmpeg:\n  hevc: \"-f hevc -i {input}\"\nstreams:\n")
 	userinfo := url.UserPassword(c.User, c.Pass).String()
 	hw := ""
 	if c.VAAPI {

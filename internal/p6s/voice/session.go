@@ -98,7 +98,7 @@ func Open(ctx context.Context, command, media net.Conn, cfg Config) (*Session, e
 	got, err := s.waitCommand(waitCtx)
 	if err != nil {
 		s.closeConns()
-		return nil, err
+		return nil, contextError(waitCtx, err)
 	}
 	reply, err := ParseVoiceStreamCreateReply(got.XML)
 	if err != nil {
@@ -441,6 +441,10 @@ func watchContext(ctx context.Context, conn net.Conn) func() {
 func contextError(ctx context.Context, err error) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return context.DeadlineExceeded
 	}
 	return err
 }

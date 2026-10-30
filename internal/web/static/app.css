@@ -66,6 +66,11 @@ a.button { display: inline-flex; align-items: center; min-height: 44px; padding:
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 a.button:hover { border-color: var(--muted); }
 .panel .row button { flex: 1; }
+.talk-control { display: grid; gap: 6px; }
+.talk-control button { width: 100%; }
+.talk-control button[data-state="permission"],
+.talk-control button[data-state="connecting"] { border-color: var(--accent); }
+.talk-control output { text-align: center; }
 .tile.empty { display: grid; place-items: center; color: var(--muted); }
 .tile.empty p { margin: 0; font-size: 13px; }
 

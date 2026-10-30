@@ -8,9 +8,10 @@
 <title>{{if .Title}}{{.Title}} · {{end}}open-nvr</title>
 <link rel="icon" href="{{asset "/static/favicon.svg"}}" type="image/svg+xml">
 <link rel="stylesheet" href="{{asset "/static/app.css"}}">
+{{block "head" .}}{{end}}
 <script src="{{asset "/static/vendor/htmx.min.js"}}" defer></script>
 </head>
-<body{{if .CSRF}} hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'{{end}}>
+<body{{if .CSRF}} hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}' data-csrf="{{.CSRF}}"{{end}}>
 {{if .User}}
 <header class="bar">
   <a class="brand" href="/">open-nvr</a>

@@ -1,3 +1,4 @@
+{{define "head"}}<link rel="stylesheet" href="{{asset "/static/recordings.css"}}">{{end}}
 {{define "content"}}
 {{$p := .Data}}
 <nav class="tabs">
@@ -29,9 +30,18 @@
     </svg>
     <div class="ticks"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
     <ul class="segments">
-      {{range $p.Bars}}<li><span class="swatch t-{{.Type}}"></span>{{.Label}}</li>{{else}}<li class="muted">Sin grabaciones este día.</li>{{end}}
+      {{range $p.Bars}}<li><span class="swatch t-{{.Type}}"></span><span>{{.Label}}</span>{{if $p.Playback}} <button class="play-recording" type="button" data-channel="{{$p.Channel}}" data-start="{{.Start}}" data-end="{{.End}}">Reproducir</button>{{end}}</li>{{else}}<li class="muted">Sin grabaciones este día.</li>{{end}}
     </ul>
-    <p class="notice">Reproducción pendiente: el NVR solo la ofrece por su protocolo propio (P6S), aún sin implementar.</p>
+    {{if $p.Playback}}<section id="recording-player" class="recording-player" hidden aria-live="polite">
+      <div class="recording-video"></div>
+      <div class="recording-controls">
+        <span id="recording-state">Preparando…</span>
+        <button id="recording-pause" type="button">Pausar</button>
+        <label>Posición <input id="recording-seek" type="range" min="0" value="0" step="1"></label>
+        <button id="recording-close" type="button">Cerrar</button>
+      </div>
+    </section>{{end}}
   </div>
 </section>
 {{end}}
+{{define "scripts"}}{{if .Data.Playback}}<script type="module" src="{{asset "/static/js/recordings.js"}}"></script>{{end}}{{end}}
