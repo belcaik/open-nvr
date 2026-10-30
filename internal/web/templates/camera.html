@@ -43,6 +43,14 @@
       <button hx-post="/api/ptz/{{$ch}}/wiper/on">Limpiar sí</button>
       <button hx-post="/api/ptz/{{$ch}}/wiper/off">Limpiar no</button>
     </div>
+    {{if .Data.Talk}}
+    <h2>Micrófono</h2>
+    <div class="talk-control">
+      <button id="talk-button" type="button" data-channel="{{$ch}}" data-csrf="{{.CSRF}}"
+        data-worklet="{{asset "/static/js/talk-worklet.js"}}" aria-pressed="false">Mantener Hablar</button>
+      <output id="talk-status" class="muted" aria-live="polite">Listo</output>
+    </div>
+    {{end}}
     <div class="row">
       <a class="button" href="/camera/{{$ch}}/snapshot" target="_blank" rel="noopener">Captura</a>
       <a class="button" href="/">Volver</a>
@@ -52,4 +60,5 @@
 </section>
 {{end}}
 {{define "scripts"}}<script type="module" src="{{asset "/static/js/video.js"}}"></script>
-<script type="module" src="{{asset "/static/js/ptz.js"}}"></script>{{end}}
+<script type="module" src="{{asset "/static/js/ptz.js"}}"></script>
+{{if .Data.Talk}}<script type="module" src="{{asset "/static/js/talk.js"}}"></script>{{end}}{{end}}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/belcaik/open-nvr/internal/auth"
 	"github.com/belcaik/open-nvr/internal/nvr"
+	"github.com/belcaik/open-nvr/internal/talk"
 )
 
 // CameraService es lo que la web necesita del dominio de cámaras
@@ -40,7 +41,10 @@ type Deps struct {
 	Channels       []int
 	Config         ConfigService    // nil: sin páginas de ajustes
 	Recordings     RecordingService // nil: sin página de grabaciones
+	Playback       PlaybackService  // nil: sin controles de reproducción histórica
+	PlaybackSource http.Handler     // fuente opaca para go2rtc; no requiere cookie web
 	Events         EventHub         // nil: sin /api/events
+	Talk           talk.Opener      // nil: sin micrófono P6S
 	Location       *time.Location   // zona horaria del NVR
 	// FailDelay retrasa la respuesta a un login fallido (500 ms en producción).
 	FailDelay time.Duration
@@ -66,6 +70,9 @@ func NewServer(d Deps) http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /login", s.loginForm)
 	mux.HandleFunc("POST /login", s.login)
+	if d.PlaybackSource != nil {
+		mux.Handle("GET /internal/playback/{token}", d.PlaybackSource)
+	}
 
 	authed := func(h http.HandlerFunc) http.Handler { return s.requireSession(s.requireCSRF(h)) }
 	mux.Handle("POST /logout", authed(s.logout))
@@ -81,8 +88,14 @@ func NewServer(d Deps) http.Handler {
 	if d.Recordings != nil {
 		mux.Handle("GET /recordings", authed(s.recordings))
 	}
+	if d.Playback != nil {
+		s.registerPlaybackRoutes(mux, authed)
+	}
 	if d.Events != nil {
 		mux.Handle("GET /api/events", authed(s.events))
+	}
+	if d.Talk != nil {
+		mux.Handle("GET /api/talk/{ch}", authed(s.sameOrigin(s.talk)))
 	}
 
 	return securityHeaders(s.privateOnly(mux))

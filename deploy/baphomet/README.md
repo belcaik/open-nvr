@@ -266,6 +266,18 @@ La cuadrícula solo pide vídeo de los canales en los que el NVR informa de
 una cámara registrada: si go2rtc reintenta un canal vacío, el NVR acaba
 dejando de servir también los demás.
 
+En **Grabaciones**, cada tramo tiene **Reproducir**, pausa, posición y cierre.
+La sesión P6S se expone sólo a go2rtc mediante una URL temporal y se transcodifica
+a H.264 para el navegador. `PLAYBACK_SOURCE_BASE_URL` es opcional y por defecto
+usa `http://<WEB_LISTEN>/internal/playback`; sólo hace falta cambiarlo si go2rtc
+debe alcanzar esa fuente por otra dirección. En **Directo > Cámara**, **Mantener
+Hablar** captura el micrófono durante la pulsación y lo libera al soltar; requiere
+HTTPS o localhost y permiso del navegador.
+
+El cambio de contraseña interna de una IPC sigue sin exponerse: todavía no hay
+una captura que demuestre el comando y el destino correctos. Editar sólo la
+credencial guardada por el NVR no equivale a cambiarla dentro de la cámara.
+
 Vuelta atrás: `sudo podman-compose stop web go2rtc` y restaurar la imagen
 anterior de Caddy.
 

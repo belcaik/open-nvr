@@ -252,12 +252,17 @@ Evidencia REA principal de la investigación:
   `MediaFlag` y login sobre `net.Conn` con heartbeat y cancelación. No hace Dial
   por sí mismo ni incluye credenciales en errores.
 - `internal/p6s/history`: comandos `MultiType`, seek capturado y sesión completa
-  sobre conexiones inyectadas, con heartbeat, cancelación y stop/destroy.
+  sobre conexiones inyectadas, con `NetHistoryDataFlow` en heartbeat, cancelación
+  y stop/destroy.
 - `internal/p6s/mpegps`: extensión opaca, reensamblado de pack/PES, SCR/PTS/DTS
   acotados al paquete actual, `program_end_code`, límites de memoria y pruebas de
   fragmentación. No interpreta todavía la extensión ni el vídeo elemental `b7`.
-- `internal/p6s/voice`: PCM S16LE ↔ PCMU, mensajes `VoiceStream*`, fixture opaco
-  y sesión corta con envíos serializados y cierre explícito.
+- `internal/playback`: reproducción web con confirmación de enlace y secuencia
+  Stop→Seek→Start→Speed, fuente HTTP temporal HEVC y salida H.264 de go2rtc.
+  Retira el prefijo propietario anterior al primer VPS, tolera reconexiones y
+  coordina pausa, seek y cierre.
+- `internal/p6s/voice` e `internal/talk`: PCM S16LE ↔ PCMU, mensajes `VoiceStream*`,
+  extensión capturada opaca y sesiones web con envíos serializados y cierre explícito.
 - Pruebas golden, fragmentación byte a byte, `net.Pipe`, concurrencia con `-race`
   y composición entre paquetes. `go test -race ./...`, `go vet ./...` y
   `git diff --check` pasan. Login, voz e histórico están probados contra el DVR;

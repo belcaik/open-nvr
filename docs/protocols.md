@@ -20,8 +20,8 @@ están enlazadas en cada apartado.
 | Iluminación IR/blanca | `PUT /PTZ/1/Light`; configuración en `/Images/{ch}/IrCutFilter` | ✅ Probado |
 | Captura JPEG | `GET /Snapshot/1/RemoteImageCapture?ImageFormat=2` | ✅ |
 | Eventos | WebSocket `/WebSocket/Connect` (`fun=event`) | ✅ Conecta; movimiento desactivado |
-| Audio bidireccional | Protocolo privado P6S: `VoiceStream*` en 6060 y μ-law de 320 B/40 ms en 6066 ([p6s-protocol.md](p6s-protocol.md)). El backchannel RTSP se ignora | ✅ Sesión Go real con silencio y stop/destroy; extensión opaca pendiente |
-| Grabaciones | Búsqueda por HTTP (`/Playback/GetRecordInfoBy*`), reproducción por P6S `HistoryStream*` | ✅ `MultiType` y seek Go reales; clip `b7`. Parser MPEG-PS offline; descarga pendiente |
+| Audio bidireccional | Protocolo privado P6S: `VoiceStream*` en 6060 y μ-law de 320 B/40 ms en 6066 ([p6s-protocol.md](p6s-protocol.md)). El backchannel RTSP se ignora | ✅ WebSocket web y AudioWorklet validados con PCM real; botón mantener Hablar y cierre correctos |
+| Grabaciones | Búsqueda por HTTP (`/Playback/GetRecordInfoBy*`), reproducción por P6S `HistoryStream*` | ✅ Reproducción web H.264 con pausa, seek, reconexión y cierre; descarga pendiente |
 | Configuración | API HTTP/XML (ver [api-reference.md](api-reference.md)) | ✅ Documentada |
 
 > Actualizado el 2026-10-29 con los resultados de las etapas 1 y 2 y el análisis estático de EasyVideo

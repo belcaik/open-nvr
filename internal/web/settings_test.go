@@ -2,17 +2,20 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/auth"
 	"github.com/belcaik/open-nvr/internal/nvr"
+	"github.com/belcaik/open-nvr/internal/playback"
 )
 
 type fakeConfig struct {
@@ -97,6 +100,38 @@ type fakeHub struct{ ch chan nvr.Event }
 
 func (h *fakeHub) Subscribe() (<-chan nvr.Event, func()) { return h.ch, func() {} }
 
+type fakePlayback struct {
+	calls []string
+	view  playback.View
+}
+
+func (f *fakePlayback) Open(_ context.Context, r playback.Request) (playback.View, error) {
+	f.calls = append(f.calls, fmt.Sprintf("open %d %s %s", r.Channel, r.Start.Format(time.RFC3339), r.End.Format(time.RFC3339)))
+	f.view = playback.View{ID: "opaque-id", Stream: "playback_0123456789abcdef0123456789abcdef", State: playback.StateReady,
+		Channel: r.Channel, Start: r.Start, End: r.End}
+	return f.view, nil
+}
+func (f *fakePlayback) Status(id string) (playback.View, bool) {
+	f.calls = append(f.calls, "status "+id)
+	return f.view, f.view.ID == id
+}
+func (f *fakePlayback) Pause(_ context.Context, id string) error {
+	f.calls = append(f.calls, "pause "+id)
+	return nil
+}
+func (f *fakePlayback) Resume(_ context.Context, id string) error {
+	f.calls = append(f.calls, "resume "+id)
+	return nil
+}
+func (f *fakePlayback) Seek(_ context.Context, id string, at time.Time) error {
+	f.calls = append(f.calls, "seek "+id+" "+at.Format(time.RFC3339))
+	return nil
+}
+func (f *fakePlayback) ClosePlayback(id string) error {
+	f.calls = append(f.calls, "close "+id)
+	return nil
+}
+
 func newFullEnv(t *testing.T) (*env, *fakeConfig, *fakeHub) {
 	t.Helper()
 	e := newEnv(t)
@@ -107,11 +142,16 @@ func newFullEnv(t *testing.T) (*env, *fakeConfig, *fakeHub) {
 		}
 	}
 	hub := &fakeHub{ch: make(chan nvr.Event, 1)}
+	play := &fakePlayback{}
+	e.play = play
 	loc, _ := time.LoadLocation("America/Santiago")
 	e.h = NewServer(Deps{
 		Cameras: e.cams, Sessions: e.sess, Limiter: auth.NewLimiter(5, time.Minute, time.Now),
 		PassHash: testHash, User: "admin", Channels: []int{1, 2, 3, 4},
-		Config: cfg, Recordings: &fakeRecordings{loc: loc}, Events: hub, Location: loc,
+		Config: cfg, Recordings: &fakeRecordings{loc: loc}, Playback: play,
+		PlaybackSource: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "source %s", r.PathValue("token"))
+		}), Events: hub, Location: loc,
 	})
 	return e, cfg, hub
 }
@@ -203,13 +243,79 @@ func TestRecordingsPage(t *testing.T) {
 	rec := e.do(e.authed(t, "GET", "/recordings?ch=2&date=2026-10-28", nil))
 	body := rec.Body.String()
 	for _, want := range []string{"octubre de 2026", `class="has sel" href="/recordings?ch=2&amp;date=2026-10-28"`,
-		`x="0.0" y="0" width="360.0"`, `x="720.0" y="0" width="30.0"`, "6h 30m grabadas", "Reproducción pendiente"} {
+		`x="0.0" y="0" width="360.0"`, `x="720.0" y="0" width="30.0"`, "6h 30m grabadas",
+		`class="play-recording"`, `data-start="2026-10-28T00:00:00-03:00"`, "/static/js/recordings.js"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("falta %q en\n%s", want, body)
 		}
 	}
+	if strings.Contains(body, "Reproducción pendiente") || strings.Contains(strings.ToLower(body), "descargar") {
+		t.Fatal("la plantilla anuncia funciones no sustentadas")
+	}
 	if rec := e.do(e.authed(t, "GET", "/recordings?date=ayer", nil)); rec.Code != 400 {
 		t.Fatal(rec.Code)
+	}
+}
+
+func TestPlaybackHTTPControlsRealSession(t *testing.T) {
+	e, _, _ := newFullEnv(t)
+	start := "2026-10-28T12:00:00-03:00"
+	end := "2026-10-28T12:30:00-03:00"
+	rec := e.do(e.authed(t, http.MethodPost, "/api/playbacks", url.Values{"channel": {"2"}, "start": {start}, "end": {end}}))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("open = %d %s", rec.Code, rec.Body)
+	}
+	var view playback.View
+	if err := json.Unmarshal(rec.Body.Bytes(), &view); err != nil || view.ID != "opaque-id" || view.Stream != "playback_0123456789abcdef0123456789abcdef" {
+		t.Fatalf("view = %+v, err = %v", view, err)
+	}
+	for _, tc := range []struct {
+		method, path string
+		form         url.Values
+	}{
+		{http.MethodPost, "/api/playbacks/opaque-id/pause", nil},
+		{http.MethodPost, "/api/playbacks/opaque-id/resume", nil},
+		{http.MethodPost, "/api/playbacks/opaque-id/seek", url.Values{"position": {"2026-10-28T12:10:00-03:00"}}},
+		{http.MethodDelete, "/api/playbacks/opaque-id", nil},
+	} {
+		if got := e.do(e.authed(t, tc.method, tc.path, tc.form)); got.Code != http.StatusNoContent {
+			t.Fatalf("%s %s = %d %s", tc.method, tc.path, got.Code, got.Body)
+		}
+	}
+	want := []string{
+		"open 2 2026-10-28T12:00:00-03:00 2026-10-28T12:30:00-03:00",
+		"pause opaque-id", "resume opaque-id", "seek opaque-id 2026-10-28T12:10:00-03:00", "close opaque-id",
+	}
+	if got := e.play.(*fakePlayback).calls; !slices.Equal(got, want) {
+		t.Fatalf("calls = %v, want %v", got, want)
+	}
+}
+
+func TestPlaybackHTTPValidatesInputAndCSRF(t *testing.T) {
+	e, _, _ := newFullEnv(t)
+	req := e.authed(t, http.MethodPost, "/api/playbacks", url.Values{
+		"channel": {"2"}, "start": {"2026-10-28T12:00:00-03:00"}, "end": {"2026-10-28T12:30:00-03:00"},
+	})
+	req.Header.Del("X-CSRF-Token")
+	if rec := e.do(req); rec.Code != http.StatusForbidden {
+		t.Fatalf("sin CSRF = %d", rec.Code)
+	}
+	bad := e.authed(t, http.MethodPost, "/api/playbacks", url.Values{
+		"channel": {"2"}, "start": {"ayer"}, "end": {"2026-10-28T12:30:00-03:00"},
+	})
+	if rec := e.do(bad); rec.Code != http.StatusBadRequest {
+		t.Fatalf("fecha inválida = %d", rec.Code)
+	}
+	if got := e.play.(*fakePlayback).calls; len(got) != 0 {
+		t.Fatalf("el servicio recibió input rechazado: %v", got)
+	}
+}
+
+func TestPlaybackSourceUsesOpaqueTokenWithoutWebCookie(t *testing.T) {
+	e, _, _ := newFullEnv(t)
+	rec := e.do(httptest.NewRequest(http.MethodGet, "/internal/playback/opaque-source-token", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "source opaque-source-token" {
+		t.Fatalf("source = %d %q", rec.Code, rec.Body.String())
 	}
 }
 

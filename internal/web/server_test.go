@@ -9,12 +9,54 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/auth"
 	"github.com/belcaik/open-nvr/internal/nvr"
+	"github.com/belcaik/open-nvr/internal/talk"
 )
+
+type fakeTalkSession struct {
+	frames chan []byte
+	closed chan struct{}
+	once   sync.Once
+	send   func(context.Context, []byte) error
+}
+
+func newFakeTalkSession() *fakeTalkSession {
+	return &fakeTalkSession{frames: make(chan []byte, 8), closed: make(chan struct{})}
+}
+
+func (s *fakeTalkSession) SendPCM(ctx context.Context, pcm []byte) error {
+	if s.send != nil {
+		return s.send(ctx, pcm)
+	}
+	s.frames <- append([]byte(nil), pcm...)
+	return nil
+}
+
+func (s *fakeTalkSession) Close() error {
+	s.once.Do(func() { close(s.closed) })
+	return nil
+}
+
+type fakeTalk struct {
+	mu      sync.Mutex
+	channel int
+	session *fakeTalkSession
+}
+
+func (f *fakeTalk) Open(_ context.Context, channel int) (talk.Session, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.channel = channel
+	if f.session == nil {
+		f.session = newFakeTalkSession()
+	}
+	return f.session, nil
+}
 
 type fakeCameras struct {
 	healthErr error
@@ -83,6 +125,8 @@ type env struct {
 	sess  *auth.Sessions
 	clock *time.Time
 	cams  *fakeCameras
+	talk  *fakeTalk
+	play  PlaybackService
 }
 
 var testHash string
@@ -103,6 +147,7 @@ func newEnv(t *testing.T) *env {
 	sess := &auth.Sessions{Key: []byte(strings.Repeat("k", 32)), Idle: 7 * 24 * time.Hour,
 		MaxAge: 30 * 24 * time.Hour, Refresh: time.Hour, Now: nowFn}
 	cams := &fakeCameras{}
+	talker := &fakeTalk{}
 	h := NewServer(Deps{
 		Cameras: cams, Sessions: sess, Limiter: auth.NewLimiter(5, 15*time.Minute, nowFn),
 		PassHash: testHash, User: "admin", Channels: []int{1, 2, 3, 4},
@@ -110,8 +155,9 @@ func newEnv(t *testing.T) *env {
 		Media: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("proxy " + r.URL.Query().Get("src")))
 		}),
+		Talk: talker,
 	})
-	return &env{h: h, sess: sess, clock: clock, cams: cams}
+	return &env{h: h, sess: sess, clock: clock, cams: cams, talk: talker}
 }
 
 func (e *env) do(req *http.Request) *httptest.ResponseRecorder {

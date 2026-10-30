@@ -65,7 +65,9 @@ func TestCameraPage(t *testing.T) {
 	rec := e.do(e.authed(t, "GET", "/camera/1", nil))
 	body := rec.Body.String()
 	if rec.Code != 200 || !strings.Contains(body, `data-quality="main"`) ||
-		!strings.Contains(body, `data-ptz="TurnUpLeft"`) || !strings.Contains(body, "weak password") {
+		!strings.Contains(body, `data-ptz="TurnUpLeft"`) || !strings.Contains(body, "weak password") ||
+		!strings.Contains(body, `id="talk-button"`) || !strings.Contains(body, `data-channel="1"`) ||
+		!strings.Contains(body, `/static/js/talk.js`) || !strings.Contains(body, `id="talk-status"`) {
 		t.Fatalf("%d %s", rec.Code, body)
 	}
 }

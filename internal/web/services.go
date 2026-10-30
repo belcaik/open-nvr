@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/nvr"
+	"github.com/belcaik/open-nvr/internal/playback"
 )
 
 // ConfigService es la configuración del NVR (lo implementa *nvr.Client).
@@ -32,6 +33,17 @@ type ConfigService interface {
 type RecordingService interface {
 	RecordDays(ctx context.Context, year int, month time.Month) ([]int, error)
 	RecordSegments(ctx context.Context, ch int, day time.Time) ([]nvr.Segment, error)
+}
+
+// PlaybackService controla sesiones históricas opacas; la web nunca maneja
+// conexiones P6S ni URLs de fuente.
+type PlaybackService interface {
+	Open(context.Context, playback.Request) (playback.View, error)
+	Status(id string) (playback.View, bool)
+	Pause(context.Context, string) error
+	Resume(context.Context, string) error
+	Seek(context.Context, string, time.Time) error
+	ClosePlayback(string) error
 }
 
 // EventHub reparte los eventos del NVR (lo implementa *camera.Hub).
