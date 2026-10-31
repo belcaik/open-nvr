@@ -15,6 +15,7 @@ func (s *server) registerSettingsRoutes(mux *http.ServeMux, authed func(http.Han
 	}))
 	mux.Handle("GET /settings/camera/{ch}", authed(s.settingsCamera))
 	mux.Handle("PUT /api/settings/{ch}/osd", authed(s.putOSD))
+	mux.Handle("PUT /api/settings/{ch}/password", authed(s.putCameraPassword))
 	mux.Handle("PUT /api/settings/{ch}/white-balance", authed(s.putWhiteBalance))
 	mux.Handle("PUT /api/settings/{ch}/exposure", authed(s.putExposure))
 	mux.Handle("PUT /api/settings/{ch}/scene", authed(s.putScene))
@@ -124,6 +125,20 @@ func (s *server) putOSD(w http.ResponseWriter, r *http.Request) {
 	}
 	v := nvr.OSD{NameEnabled: r.PostFormValue("name_enabled") == "on", Name: r.PostFormValue("name"), TimeEnabled: r.PostFormValue("time_enabled") == "on"}
 	s.result(w, r, s.d.Config.SetOSD(r.Context(), ch, v), "OSD guardado")
+}
+
+func (s *server) putCameraPassword(w http.ResponseWriter, r *http.Request) {
+	ch, ok := s.channel(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	password := r.PostFormValue("password")
+	if password != r.PostFormValue("confirmation") {
+		s.badForm(w, r, "Las contraseñas no coinciden")
+		return
+	}
+	s.result(w, r, s.d.Config.SetCameraPassword(r.Context(), ch, password), "Contraseña cambiada y conexión verificada")
 }
 
 func (s *server) putWhiteBalance(w http.ResponseWriter, r *http.Request) {

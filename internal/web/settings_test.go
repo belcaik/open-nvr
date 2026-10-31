@@ -34,6 +34,9 @@ func (f *fakeConfig) OSD(context.Context, int) (nvr.OSD, error) {
 func (f *fakeConfig) SetOSD(_ context.Context, ch int, v nvr.OSD) error {
 	return f.rec("osd %d %+v", ch, v)
 }
+func (f *fakeConfig) SetCameraPassword(_ context.Context, ch int, _ string) error {
+	return f.rec("camera password %d", ch)
+}
 func (f *fakeConfig) WhiteBalance(context.Context, int) (nvr.WhiteBalance, error) {
 	return nvr.WhiteBalance{Mode: "auto", GainRed: 50, GainBlue: 50}, f.err
 }
@@ -299,6 +302,28 @@ func TestPutOSDImageAudioAndP2P(t *testing.T) {
 	}
 	if !strings.Contains(cfg.calls[4], "G.711U") || strings.Contains(cfg.calls[4], "G.711A") {
 		t.Fatalf("el formulario cambió el códec del talk: %v", cfg.calls[4])
+	}
+}
+
+func TestPutCameraPassword(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	rec := e.do(e.authed(t, "PUT", "/api/settings/2/password", url.Values{"password": {"Clave2026segura"}, "confirmation": {"Clave2026segura"}}))
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Contraseña cambiada") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if len(cfg.calls) != 1 || cfg.calls[0] != "camera password 2" {
+		t.Fatalf("calls = %v", cfg.calls)
+	}
+}
+
+func TestPutCameraPasswordMismatchDoesNotWrite(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	rec := e.do(e.authed(t, "PUT", "/api/settings/2/password", url.Values{"password": {"Clave2026segura"}, "confirmation": {"otra2026"}}))
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "no coinciden") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if len(cfg.calls) != 0 {
+		t.Fatalf("calls = %v", cfg.calls)
 	}
 }
 

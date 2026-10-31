@@ -16,6 +16,15 @@
     {{end}}{{end}}
   </form>
 
+  <form class="panel" hx-put="/api/settings/{{$ch}}/password" hx-target="find output" hx-swap="innerHTML">
+    <h2>Contraseña de la cámara</h2>
+    <p class="muted">Cambia la clave dentro de esta cámara y actualiza la conexión del NVR. Si la cámara no vuelve a conectar, se restaura la credencial anterior.</p>
+    <label>Nueva contraseña <input type="password" name="password" minlength="8" maxlength="16" autocomplete="new-password" required></label>
+    <label>Repetir contraseña <input type="password" name="confirmation" minlength="8" maxlength="16" autocomplete="new-password" required></label>
+    <p class="muted">Entre 8 y 16 caracteres ASCII visibles, con al menos una letra y un número.</p>
+    <div class="row"><button type="submit">Cambiar contraseña</button><output></output></div>
+  </form>
+
   <form class="panel" hx-put="/api/settings/{{$ch}}/white-balance" hx-target="find output" hx-swap="innerHTML">
     <h2>Balance de blancos</h2>
     {{with $p.WhiteBalance.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.WhiteBalance.V}}

@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -47,12 +48,13 @@ const (
 // mismo límite con el que trabaja bien el firmware (la UI original abusa y
 // el equipo deja de responder).
 type Client struct {
-	base string
-	user string
-	pass string
-	hc   *http.Client
-	sem  chan struct{}
-	loc  *time.Location
+	base             string
+	user             string
+	pass             string
+	hc               *http.Client
+	sem              chan struct{}
+	loc              *time.Location
+	cameraPasswordMu sync.Mutex
 }
 
 // New crea un cliente para base ("http://host:port") con auth Basic.
