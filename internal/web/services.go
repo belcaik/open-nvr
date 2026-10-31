@@ -10,6 +10,14 @@ import (
 
 // ConfigService es la configuración del NVR (lo implementa *nvr.Client).
 type ConfigService interface {
+	OSD(ctx context.Context, ch int) (nvr.OSD, error)
+	SetOSD(ctx context.Context, ch int, v nvr.OSD) error
+	WhiteBalance(ctx context.Context, ch int) (nvr.WhiteBalance, error)
+	SetWhiteBalance(ctx context.Context, ch int, v nvr.WhiteBalance) error
+	Exposure(ctx context.Context, ch int) (nvr.Exposure, error)
+	SetExposure(ctx context.Context, ch int, v nvr.Exposure) error
+	Scene(ctx context.Context, ch int) (nvr.Scene, error)
+	SetScene(ctx context.Context, ch int, v nvr.Scene) error
 	ImageColor(ctx context.Context, ch int) (nvr.ImageColor, error)
 	SetImageColor(ctx context.Context, ch int, v nvr.ImageColor) error
 	ImageBasic(ctx context.Context, ch int) (nvr.ImageBasic, error)
@@ -27,6 +35,11 @@ type ConfigService interface {
 	SyncNTP(ctx context.Context) error
 	Disks(ctx context.Context) ([]nvr.Disk, error)
 	Network(ctx context.Context) (nvr.NetworkInfo, error)
+	P2P(ctx context.Context) (nvr.P2P, error)
+	SetP2P(ctx context.Context, enabled bool) error
+	AudioStream(ctx context.Context) (nvr.AudioStream, error)
+	SetAudioStream(ctx context.Context, v nvr.AudioStream) error
+	Logs(ctx context.Context, majorType string, start, stop time.Time) ([]nvr.LogEntry, error)
 }
 
 // RecordingService dice qué hay grabado (lo implementa *nvr.Client).

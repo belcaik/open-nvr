@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<OSD Version="1.0">
+    <DisplayName Version="1.0">
+        <Enable>true</Enable>
+        <PosX>16</PosX>
+        <PosY>24</PosY>
+        <Name>Cámara patio</Name>
+        <UnknownNameField>preservar</UnknownNameField>
+    </DisplayName>
+    <DisplayTime Version="1.0">
+        <Enable>true</Enable>
+        <PosX>480</PosX>
+        <PosY>24</PosY>
+    </DisplayTime>
+    <UnknownOSDField>preservar</UnknownOSDField>
+</OSD>

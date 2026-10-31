@@ -3,6 +3,7 @@
 <nav class="tabs">
   <a href="/settings">Cámaras</a>
   <a class="active" href="/settings/nvr">NVR</a>
+  <a href="/settings/logs">Registros</a>
 </nav>
 <section class="settings">
   <div class="panel">
@@ -16,6 +17,26 @@
     </form>
     {{end}}{{end}}
   </div>
+
+  <form class="panel" hx-put="/api/settings/nvr/p2p" hx-target="find output" hx-swap="innerHTML">
+    <h2>Acceso P2P</h2>
+    {{with $p.P2P.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.P2P.V}}
+    <label class="row"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Activado</label>
+    <p>Identificador: {{.UUID}} · estado {{choiceLabel .State}}</p>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/nvr/audio" hx-target="find output" hx-swap="innerHTML">
+    <h2>Audio global</h2>
+    {{with $p.Audio.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Audio.V}}
+    <label>Entrada <select name="input_method">{{$v := .InputMethod}}{{range $o := audioInputMethods}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{choiceLabel $o}}</option>{{end}}</select></label>
+    <p>Códec: {{.Codec}}. Se conserva porque el intercom usado por esta interfaz emplea G.711 μ-law.</p>
+    <label>Volumen de entrada <input type="range" name="input_volume" min="0" max="100" value="{{.InputVolume}}"></label>
+    {{if .HasOutputVolume}}<label>Volumen de salida <input type="range" name="output_volume" min="0" max="100" value="{{.OutputVolume}}"></label>{{end}}
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
 
   <div class="panel">
     <h2>Disco</h2>

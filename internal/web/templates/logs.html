@@ -1,0 +1,34 @@
+{{define "content"}}
+{{$p := .Data}}
+<nav class="tabs">
+  <a href="/settings">Cámaras</a><a href="/settings/nvr">NVR</a><a class="active" href="/settings/logs">Registros</a>
+</nav>
+<section class="panel logs">
+  <h2>Registros del NVR (solo lectura)</h2>
+  <form class="log-filters" method="get" action="/settings/logs">
+    <label>Tipo
+      <select name="type">
+        <option value="1" {{if eq $p.Major "1"}}selected{{end}}>Operaciones del sistema</option>
+        <option value="2" {{if eq $p.Major "2"}}selected{{end}}>Configuración</option>
+        <option value="3" {{if eq $p.Major "3"}}selected{{end}}>Grabación</option>
+        <option value="4" {{if eq $p.Major "4"}}selected{{end}}>Alarmas</option>
+        <option value="6" {{if eq $p.Major "6"}}selected{{end}}>Almacenamiento</option>
+        <option value="7" {{if eq $p.Major "7"}}selected{{end}}>Red</option>
+        <option value="8" {{if eq $p.Major "8"}}selected{{end}}>Otros</option>
+        <option value="9" {{if eq $p.Major "9"}}selected{{end}}>Todos</option>
+      </select>
+    </label>
+    <label>Desde <input type="datetime-local" name="start" value="{{$p.Start}}" required></label>
+    <label>Hasta <input type="datetime-local" name="stop" value="{{$p.Stop}}" required></label>
+    <button type="submit">Buscar</button>
+    <a class="button" href="{{$p.CSVURL}}">Exportar CSV</a>
+  </form>
+  <p class="muted">Rango máximo: 31 días. Se muestran y exportan como máximo 1000 filas.</p>
+  {{with $p.Err}}<p class="error">{{.}}</p>{{else}}
+  <div class="table-scroll"><table>
+    <thead><tr><th>Fecha</th><th>Usuario</th><th>IP</th><th>Tipo</th><th>Canal</th><th>Detalle</th></tr></thead>
+    <tbody>{{range $p.Entries}}<tr><td>{{logTime .Time}}</td><td>{{.User}}</td><td>{{.HostIP}}</td><td>{{.MinorType}}</td><td>{{.Channel}}</td><td>{{.IPConflictMAC}}</td></tr>{{else}}<tr><td colspan="6">No hay registros en este rango.</td></tr>{{end}}</tbody>
+  </table></div>
+  {{end}}
+</section>
+{{end}}

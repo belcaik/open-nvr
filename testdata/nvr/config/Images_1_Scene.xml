@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Scene Version="1.0">
+    <Support>true</Support>
+    <Mode>normal</Mode>
+    <LDC>false</LDC>
+    <Fog>false</Fog>
+    <FogValue>30</FogValue>
+    <Gamma>50</Gamma>
+</Scene>

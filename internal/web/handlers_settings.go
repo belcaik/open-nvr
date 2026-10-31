@@ -14,6 +14,10 @@ func (s *server) registerSettingsRoutes(mux *http.ServeMux, authed func(http.Han
 		http.Redirect(w, r, "/settings/camera/"+strconv.Itoa(s.d.Channels[0]), http.StatusSeeOther)
 	}))
 	mux.Handle("GET /settings/camera/{ch}", authed(s.settingsCamera))
+	mux.Handle("PUT /api/settings/{ch}/osd", authed(s.putOSD))
+	mux.Handle("PUT /api/settings/{ch}/white-balance", authed(s.putWhiteBalance))
+	mux.Handle("PUT /api/settings/{ch}/exposure", authed(s.putExposure))
+	mux.Handle("PUT /api/settings/{ch}/scene", authed(s.putScene))
 	mux.Handle("PUT /api/settings/{ch}/color", authed(s.putColor))
 	mux.Handle("PUT /api/settings/{ch}/basic", authed(s.putBasic))
 	mux.Handle("PUT /api/settings/{ch}/ircut", authed(s.putIrCut))
@@ -21,7 +25,11 @@ func (s *server) registerSettingsRoutes(mux *http.ServeMux, authed func(http.Han
 	mux.Handle("PUT /api/settings/{ch}/schedule", authed(s.putSchedule))
 	mux.Handle("GET /settings/nvr", authed(s.settingsNVR))
 	mux.Handle("PUT /api/settings/nvr/record", authed(s.putRecordSettings))
+	mux.Handle("PUT /api/settings/nvr/p2p", authed(s.putP2P))
+	mux.Handle("PUT /api/settings/nvr/audio", authed(s.putAudio))
 	mux.Handle("POST /api/settings/nvr/ntp-sync", authed(s.postNTPSync))
+	mux.Handle("GET /settings/logs", authed(s.settingsLogs))
+	mux.Handle("GET /api/settings/logs.csv", authed(s.logsCSV))
 }
 
 // section guarda el valor leído o el error de cada bloque: un bloque que
@@ -46,15 +54,19 @@ type scheduleView struct {
 }
 
 type cameraSettingsPage struct {
-	Channel  int
-	Channels []int
-	Color    section[nvr.ImageColor]
-	Basic    section[nvr.ImageBasic]
-	IrCut    section[nvr.IrCut]
-	Motion   section[nvr.Motion]
-	Schedule section[scheduleView]
-	Main     section[nvr.StreamInfo]
-	Sub      section[nvr.StreamInfo]
+	Channel      int
+	Channels     []int
+	OSD          section[nvr.OSD]
+	WhiteBalance section[nvr.WhiteBalance]
+	Exposure     section[nvr.Exposure]
+	Scene        section[nvr.Scene]
+	Color        section[nvr.ImageColor]
+	Basic        section[nvr.ImageBasic]
+	IrCut        section[nvr.IrCut]
+	Motion       section[nvr.Motion]
+	Schedule     section[scheduleView]
+	Main         section[nvr.StreamInfo]
+	Sub          section[nvr.StreamInfo]
 }
 
 func scheduleMode(rs nvr.RecordSchedule) string {
@@ -87,6 +99,10 @@ func (s *server) settingsCamera(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	c := s.d.Config
 	p := cameraSettingsPage{Channel: ch, Channels: s.d.Channels}
+	p.OSD = load(ctx, func(ctx context.Context) (nvr.OSD, error) { return c.OSD(ctx, ch) })
+	p.WhiteBalance = load(ctx, func(ctx context.Context) (nvr.WhiteBalance, error) { return c.WhiteBalance(ctx, ch) })
+	p.Exposure = load(ctx, func(ctx context.Context) (nvr.Exposure, error) { return c.Exposure(ctx, ch) })
+	p.Scene = load(ctx, func(ctx context.Context) (nvr.Scene, error) { return c.Scene(ctx, ch) })
 	p.Color = load(ctx, func(ctx context.Context) (nvr.ImageColor, error) { return c.ImageColor(ctx, ch) })
 	p.Basic = load(ctx, func(ctx context.Context) (nvr.ImageBasic, error) { return c.ImageBasic(ctx, ch) })
 	p.IrCut = load(ctx, func(ctx context.Context) (nvr.IrCut, error) { return c.IrCut(ctx, ch) })
@@ -98,6 +114,51 @@ func (s *server) settingsCamera(w http.ResponseWriter, r *http.Request) {
 	p.Main = load(ctx, func(ctx context.Context) (nvr.StreamInfo, error) { return c.Stream(ctx, ch, 1) })
 	p.Sub = load(ctx, func(ctx context.Context) (nvr.StreamInfo, error) { return c.Stream(ctx, ch, 2) })
 	s.render(w, r, http.StatusOK, "settings_camera", "Ajustes · Cámara "+strconv.Itoa(ch), p)
+}
+
+func (s *server) putOSD(w http.ResponseWriter, r *http.Request) {
+	ch, ok := s.channel(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	v := nvr.OSD{NameEnabled: r.PostFormValue("name_enabled") == "on", Name: r.PostFormValue("name"), TimeEnabled: r.PostFormValue("time_enabled") == "on"}
+	s.result(w, r, s.d.Config.SetOSD(r.Context(), ch, v), "OSD guardado")
+}
+
+func (s *server) putWhiteBalance(w http.ResponseWriter, r *http.Request) {
+	ch, ok := s.channel(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	red, okRed := formInt(r, "gain_red")
+	blue, okBlue := formInt(r, "gain_blue")
+	if !okRed || !okBlue {
+		s.badForm(w, r, "Ganancia no válida")
+		return
+	}
+	v := nvr.WhiteBalance{Mode: r.PostFormValue("mode"), GainRed: red, GainBlue: blue}
+	s.result(w, r, s.d.Config.SetWhiteBalance(r.Context(), ch, v), "Balance de blancos guardado")
+}
+
+func (s *server) putExposure(w http.ResponseWriter, r *http.Request) {
+	ch, ok := s.channel(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	v := nvr.Exposure{IrisType: r.PostFormValue("iris"), Shutter: r.PostFormValue("shutter"), Gain: r.PostFormValue("gain")}
+	s.result(w, r, s.d.Config.SetExposure(r.Context(), ch, v), "Exposición guardada")
+}
+
+func (s *server) putScene(w http.ResponseWriter, r *http.Request) {
+	ch, ok := s.channel(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	s.result(w, r, s.d.Config.SetScene(r.Context(), ch, nvr.Scene{FogValue: r.PostFormValue("fog")}), "Escena guardada")
 }
 
 // formInt lee un entero del formulario; ok=false si falta o no es número.
@@ -196,23 +257,32 @@ func (s *server) putSchedule(w http.ResponseWriter, r *http.Request) {
 		s.result(w, r, err, "")
 		return
 	}
+	mode := r.PostFormValue("mode")
 	var on bool
-	switch r.PostFormValue("mode") {
+	switch mode {
 	case "continuous":
 		on = true
 	case "off":
+	case "custom":
 	default:
 		s.badForm(w, r, "Modo de grabación no válido")
 		return
 	}
-	cur.AllDay = on
+	cur.AllDay = mode == "continuous"
 	for d := range cur.Days {
 		for h := range cur.Days[d] {
-			cur.Days[d][h] = on
+			if mode == "custom" {
+				cur.Days[d][h] = r.PostFormValue("slot_"+strconv.Itoa(d)+"_"+strconv.Itoa(h)) == "on"
+			} else {
+				cur.Days[d][h] = on
+			}
 		}
 	}
-	msg := "Grabación continua activada"
-	if !on {
+	msg := "Horario personalizado guardado"
+	if mode == "continuous" {
+		msg = "Grabación continua activada"
+	}
+	if mode == "off" {
 		msg = "Grabación desactivada"
 	}
 	s.result(w, r, s.d.Config.SetRecordSchedule(r.Context(), ch, cur), msg)
@@ -223,6 +293,8 @@ type nvrSettingsPage struct {
 	Disks   section[[]nvr.Disk]
 	Network section[nvr.NetworkInfo]
 	Record  section[nvr.RecordSettings]
+	P2P     section[nvr.P2P]
+	Audio   section[nvr.AudioStream]
 }
 
 func (s *server) settingsNVR(w http.ResponseWriter, r *http.Request) {
@@ -234,8 +306,39 @@ func (s *server) settingsNVR(w http.ResponseWriter, r *http.Request) {
 		Disks:   load(ctx, c.Disks),
 		Network: load(ctx, c.Network),
 		Record:  load(ctx, c.RecordSettings),
+		P2P:     load(ctx, c.P2P),
+		Audio:   load(ctx, c.AudioStream),
 	}
 	s.render(w, r, http.StatusOK, "settings_nvr", "Ajustes · NVR", p)
+}
+
+func (s *server) putP2P(w http.ResponseWriter, r *http.Request) {
+	enabled := r.PostFormValue("enabled") == "on"
+	msg := "P2P desactivado"
+	if enabled {
+		msg = "P2P activado"
+	}
+	s.result(w, r, s.d.Config.SetP2P(r.Context(), enabled), msg)
+}
+
+func (s *server) putAudio(w http.ResponseWriter, r *http.Request) {
+	v, err := s.d.Config.AudioStream(r.Context())
+	if err != nil {
+		s.result(w, r, err, "")
+		return
+	}
+	in, okIn := formInt(r, "input_volume")
+	out, okOut := formInt(r, "output_volume")
+	if !okIn || (v.HasOutputVolume && !okOut) {
+		s.badForm(w, r, "Volumen no válido")
+		return
+	}
+	v.InputMethod = r.PostFormValue("input_method")
+	v.InputVolume = in
+	if v.HasOutputVolume {
+		v.OutputVolume = out
+	}
+	s.result(w, r, s.d.Config.SetAudioStream(r.Context(), v), "Audio guardado")
 }
 
 func (s *server) putRecordSettings(w http.ResponseWriter, r *http.Request) {

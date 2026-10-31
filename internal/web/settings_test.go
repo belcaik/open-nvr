@@ -28,6 +28,30 @@ func (f *fakeConfig) rec(format string, a ...any) error {
 	f.calls = append(f.calls, fmt.Sprintf(format, a...))
 	return f.err
 }
+func (f *fakeConfig) OSD(context.Context, int) (nvr.OSD, error) {
+	return nvr.OSD{NameEnabled: true, Name: "Patio", TimeEnabled: true}, f.err
+}
+func (f *fakeConfig) SetOSD(_ context.Context, ch int, v nvr.OSD) error {
+	return f.rec("osd %d %+v", ch, v)
+}
+func (f *fakeConfig) WhiteBalance(context.Context, int) (nvr.WhiteBalance, error) {
+	return nvr.WhiteBalance{Mode: "auto", GainRed: 50, GainBlue: 50}, f.err
+}
+func (f *fakeConfig) SetWhiteBalance(_ context.Context, ch int, v nvr.WhiteBalance) error {
+	return f.rec("wb %d %+v", ch, v)
+}
+func (f *fakeConfig) Exposure(context.Context, int) (nvr.Exposure, error) {
+	return nvr.Exposure{IrisType: "manual", Shutter: "auto", Gain: "auto"}, f.err
+}
+func (f *fakeConfig) SetExposure(_ context.Context, ch int, v nvr.Exposure) error {
+	return f.rec("exposure %d %+v", ch, v)
+}
+func (f *fakeConfig) Scene(context.Context, int) (nvr.Scene, error) {
+	return nvr.Scene{FogValue: "30"}, f.err
+}
+func (f *fakeConfig) SetScene(_ context.Context, ch int, v nvr.Scene) error {
+	return f.rec("scene %d %+v", ch, v)
+}
 func (f *fakeConfig) ImageColor(context.Context, int) (nvr.ImageColor, error) {
 	return nvr.ImageColor{Brightness: 50, Contrast: 51, Saturation: 52, Hue: 53, Sharpness: 54}, f.err
 }
@@ -85,6 +109,20 @@ func (f *fakeConfig) Disks(context.Context) ([]nvr.Disk, error) {
 func (f *fakeConfig) Network(context.Context) (nvr.NetworkInfo, error) {
 	return nvr.NetworkInfo{IP: "192.168.0.227", Gateway: "192.168.0.8"}, f.err
 }
+func (f *fakeConfig) P2P(context.Context) (nvr.P2P, error) {
+	return nvr.P2P{Enabled: true, UUID: "TEST-UUID", State: "internet-ready"}, f.err
+}
+func (f *fakeConfig) SetP2P(_ context.Context, enabled bool) error { return f.rec("p2p %v", enabled) }
+func (f *fakeConfig) AudioStream(context.Context) (nvr.AudioStream, error) {
+	return nvr.AudioStream{InputMethod: "microphone", Codec: "G.711U", InputVolume: 55, HasOutputVolume: true, OutputVolume: 65}, f.err
+}
+func (f *fakeConfig) SetAudioStream(_ context.Context, v nvr.AudioStream) error {
+	return f.rec("audio %+v", v)
+}
+func (f *fakeConfig) Logs(_ context.Context, major string, start, stop time.Time) ([]nvr.LogEntry, error) {
+	f.calls = append(f.calls, fmt.Sprintf("logs %s %s %s", major, start.Format(time.RFC3339), stop.Format(time.RFC3339)))
+	return []nvr.LogEntry{{Time: "20261030124530", User: "admin", HostIP: "192.0.2.10", MinorType: "304", Channel: "-1"}}, f.err
+}
 
 type fakeRecordings struct{ loc *time.Location }
 
@@ -136,6 +174,7 @@ func newFullEnv(t *testing.T) (*env, *fakeConfig, *fakeHub) {
 	t.Helper()
 	e := newEnv(t)
 	cfg := &fakeConfig{}
+	cfg.schedule.StreamType = "main"
 	for d := range cfg.schedule.Days {
 		for h := range cfg.schedule.Days[d] {
 			cfg.schedule.Days[d][h] = true
@@ -159,8 +198,9 @@ func newFullEnv(t *testing.T) (*env, *fakeConfig, *fakeHub) {
 func TestSettingsCameraPage(t *testing.T) {
 	e, _, _ := newFullEnv(t)
 	body := e.do(e.authed(t, "GET", "/settings/camera/2", nil)).Body.String()
-	for _, want := range []string{`hx-put="/api/settings/2/color"`, `value="53"`, "leftright", "variablewhitelight",
-		"continuo (24 h, todos los días)", "H.265 2304×1296"} {
+	for _, want := range []string{`hx-put="/api/settings/2/osd"`, `value="Patio"`, `hx-put="/api/settings/2/white-balance"`,
+		`hx-put="/api/settings/2/exposure"`, `hx-put="/api/settings/2/scene"`, `hx-put="/api/settings/2/color"`, `value="53"`, "leftright", "variablewhitelight",
+		"continuo (24 h, todos los días)", `name="slot_6_47"`, "H.265 2304×1296"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("falta %q", want)
 		}
@@ -217,6 +257,11 @@ func TestPutSchedule(t *testing.T) {
 	if rec := e.do(e.authed(t, "PUT", "/api/settings/3/schedule", url.Values{"mode": {"x"}})); rec.Code != 400 {
 		t.Fatal(rec.Code)
 	}
+	cfg.calls = nil
+	e.do(e.authed(t, "PUT", "/api/settings/3/schedule", url.Values{"mode": {"custom"}, "slot_0_0": {"on"}, "slot_6_47": {"on"}}))
+	if cfg.calls[0] != "schedule 3 allday=false on=2" || cfg.schedule.StreamType != "main" {
+		t.Fatal(cfg.calls)
+	}
 }
 
 func TestSettingsWritesRequireCSRF(t *testing.T) {
@@ -231,10 +276,46 @@ func TestSettingsWritesRequireCSRF(t *testing.T) {
 func TestSettingsNVRPage(t *testing.T) {
 	e, _, _ := newFullEnv(t)
 	body := e.do(e.authed(t, "GET", "/settings/nvr", nil)).Body.String()
-	for _, want := range []string{"ST3500418AS", "464150 de 476940", "192.168.0.227", "Sincronizar ahora", `name="delay" min="0" max="300" value="30"`} {
+	for _, want := range []string{"ST3500418AS", "464150 de 476940", "192.168.0.227", "Sincronizar ahora", "TEST-UUID", "G.711U", `name="delay" min="0" max="300" value="30"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("falta %q", want)
 		}
+	}
+}
+
+func TestPutOSDImageAudioAndP2P(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	e.do(e.authed(t, "PUT", "/api/settings/2/osd", url.Values{"name_enabled": {"on"}, "name": {"Entrada"}, "time_enabled": {"on"}}))
+	e.do(e.authed(t, "PUT", "/api/settings/2/white-balance", url.Values{"mode": {"manual"}, "gain_red": {"60"}, "gain_blue": {"40"}}))
+	e.do(e.authed(t, "PUT", "/api/settings/2/exposure", url.Values{"iris": {"DC-Iris"}, "shutter": {"1/100"}, "gain": {"12dB"}}))
+	e.do(e.authed(t, "PUT", "/api/settings/2/scene", url.Values{"fog": {"90"}}))
+	e.do(e.authed(t, "PUT", "/api/settings/nvr/audio", url.Values{"input_method": {"line-in"}, "codec": {"G.711A"}, "input_volume": {"45"}, "output_volume": {"75"}}))
+	e.do(e.authed(t, "PUT", "/api/settings/nvr/p2p", url.Values{}))
+	want := []string{"osd 2", "wb 2", "exposure 2", "scene 2", "audio", "p2p false"}
+	for i, part := range want {
+		if !strings.Contains(cfg.calls[i], part) {
+			t.Fatalf("calls = %v", cfg.calls)
+		}
+	}
+	if !strings.Contains(cfg.calls[4], "G.711U") || strings.Contains(cfg.calls[4], "G.711A") {
+		t.Fatalf("el formulario cambió el códec del talk: %v", cfg.calls[4])
+	}
+}
+
+func TestLogsPageAndCSV(t *testing.T) {
+	e, _, _ := newFullEnv(t)
+	path := "/settings/logs?type=4&start=2026-10-30T00%3A00&stop=2026-10-31T00%3A00"
+	rec := e.do(e.authed(t, "GET", path, nil))
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "2026-10-30 12:45:30") || !strings.Contains(rec.Body.String(), "Exportar CSV") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	rec = e.do(e.authed(t, "GET", "/api/settings/logs.csv?type=4&start=2026-10-30T00%3A00&stop=2026-10-31T00%3A00", nil))
+	if rec.Code != 200 || !strings.Contains(rec.Header().Get("Content-Type"), "text/csv") || !strings.Contains(rec.Body.String(), "admin,192.0.2.10,304") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	bad := e.do(e.authed(t, "GET", "/settings/logs?start=2026-01-01T00%3A00&stop=2026-03-01T00%3A00", nil))
+	if bad.Code != http.StatusBadRequest {
+		t.Fatal(bad.Code)
 	}
 }
 

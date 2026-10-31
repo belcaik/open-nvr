@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -20,12 +21,43 @@ var funcs = template.FuncMap{
 	// list crea una lista de opciones en la plantilla.
 	"list": func(xs ...string) []string { return xs },
 	// Valores admitidos por el NVR (una sola fuente: el paquete nvr).
-	"flipModes":    func() []string { return nvr.FlipModes },
-	"wdrModes":     func() []string { return nvr.WDRModes },
-	"nrModes":      func() []string { return nvr.NoiseReduceModes },
-	"blcModes":     func() []string { return nvr.BLCModes },
-	"irModes":      func() []string { return nvr.IrCutModes },
-	"motionLevels": func() []string { return nvr.MotionSensitivities },
+	"flipModes":         func() []string { return nvr.FlipModes },
+	"wdrModes":          func() []string { return nvr.WDRModes },
+	"nrModes":           func() []string { return nvr.NoiseReduceModes },
+	"blcModes":          func() []string { return nvr.BLCModes },
+	"irModes":           func() []string { return nvr.IrCutModes },
+	"motionLevels":      func() []string { return nvr.MotionSensitivities },
+	"whiteBalanceModes": func() []string { return nvr.WhiteBalanceModes },
+	"irisTypes":         func() []string { return nvr.IrisTypes },
+	"exposureShutters":  func() []string { return nvr.ExposureShutters },
+	"exposureGains":     func() []string { return nvr.ExposureGains },
+	"audioInputMethods": func() []string { return nvr.AudioInputMethods },
+	"days":              func() []int { return []int{0, 1, 2, 3, 4, 5, 6} },
+	"slots": func() []int {
+		xs := make([]int, 48)
+		for i := range xs {
+			xs[i] = i
+		}
+		return xs
+	},
+	"slotName": func(day, slot int) string { return "slot_" + itoa(day) + "_" + itoa(slot) },
+	"slotOn":   func(days [7][48]bool, day, slot int) bool { return days[day][slot] },
+	"slotTime": func(slot int) string { return fmt.Sprintf("%02d:%02d", slot/2, (slot%2)*30) },
+	"dayName":  func(day int) string { return []string{"Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"}[day] },
+	"logTime":  formatLogTime,
+	"choiceLabel": func(value string) string {
+		labels := map[string]string{
+			"incandescent": "Incandescente", "warm": "Cálido", "fluorescent": "Fluorescente",
+			"natural": "Natural", "manual": "Manual", "auto": "Automático", "locked": "Bloqueado",
+			"DC-Iris": "Iris automático", "microphone": "Micrófono", "line-in": "Entrada de línea",
+			"0": "Desactivado", "30": "Débil", "60": "Medio", "90": "Fuerte",
+			"internet-ready": "conectado a Internet", "offline": "sin conexión",
+		}
+		if label := labels[value]; label != "" {
+			return label
+		}
+		return value
+	},
 }
 
 // parsePages compila cada página junto con layout.html. Los parciales

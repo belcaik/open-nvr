@@ -191,13 +191,15 @@ func (c *Client) eventsAuth(ch int) []byte {
 // knownKinds normaliza los tipos de evento reconocidos a su nombre canónico
 // en minúsculas; cualquier otro valor se conserva crudo.
 var knownKinds = map[string]string{
-	"motion":     "motion",
-	"videolost":  "videolost",
-	"video_lost": "videolost",
-	"video-lost": "videolost",
-	"ai":         "ai",
-	"human":      "human",
-	"vehicle":    "vehicle",
+	"motion":          "motion",
+	"motiondetection": "motion",
+	"videolost":       "videolost",
+	"video_lost":      "videolost",
+	"video-lost":      "videolost",
+	"ai":              "ai",
+	"human":           "human",
+	"humandetection":  "human",
+	"vehicle":         "vehicle",
 }
 
 // parseEvent interpreta un mensaje de evento del NVR.

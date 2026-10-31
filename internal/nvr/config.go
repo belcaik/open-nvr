@@ -22,6 +22,12 @@ var (
 	IrCutModes = []string{"color", "intelligent", "variableinfraredlight", "variablewhitelight",
 		"normal white", "passivity", "initiative", "day", "night", "time"}
 	MotionSensitivities = []string{"high", "middle", "low"}
+	WhiteBalanceModes   = []string{"incandescent", "warm", "fluorescent", "natural", "manual", "auto", "locked"}
+	IrisTypes           = []string{"manual", "DC-Iris"}
+	ExposureShutters    = []string{"auto", "1/3", "1/25", "1/30", "1/50", "1/60", "1/100", "1/120", "1/240", "1/480", "1/960", "1/1000", "1/2000", "1/4000", "1/8000", "1/10000", "1/100000"}
+	ExposureGains       = []string{"auto", "6dB", "12dB", "18dB", "24dB", "30dB", "36dB", "42dB"}
+	AudioInputMethods   = []string{"microphone", "line-in"}
+	AudioCodecs         = []string{"G.711U", "G.711A"}
 )
 
 // ValidationError indica un valor inválido que no se envió al NVR.
@@ -40,6 +46,140 @@ type ImageColor struct {
 	Saturation int
 	Hue        int
 	Sharpness  int
+}
+
+type OSD struct {
+	NameEnabled bool
+	Name        string
+	TimeEnabled bool
+}
+
+type osdXML struct {
+	DisplayName struct {
+		Enabled bool   `xml:"Enable"`
+		Name    string `xml:"Name"`
+	} `xml:"DisplayName"`
+	DisplayTime struct {
+		Enabled bool `xml:"Enable"`
+	} `xml:"DisplayTime"`
+}
+
+func (c *Client) OSD(ctx context.Context, ch int) (OSD, error) {
+	path := fmt.Sprintf("/Pictures/%d/OSD", ch)
+	var x osdXML
+	if err := c.getXML(ctx, path, &x); err != nil {
+		return OSD{}, err
+	}
+	return OSD{NameEnabled: x.DisplayName.Enabled, Name: x.DisplayName.Name, TimeEnabled: x.DisplayTime.Enabled}, nil
+}
+
+func (c *Client) SetOSD(ctx context.Context, ch int, v OSD) error {
+	if strings.ContainsAny(v.Name, "\r\n") {
+		return &ValidationError{Field: "Name", Reason: "debe ocupar una sola línea"}
+	}
+	return c.patchAndPut(ctx, fmt.Sprintf("/Pictures/%d/OSD", ch), map[string]string{
+		"DisplayName/Enable": strconv.FormatBool(v.NameEnabled),
+		"DisplayName/Name":   v.Name,
+		"DisplayTime/Enable": strconv.FormatBool(v.TimeEnabled),
+	})
+}
+
+type WhiteBalance struct {
+	Mode     string
+	GainRed  int
+	GainBlue int
+}
+
+type whiteBalanceXML struct {
+	Mode     string `xml:"Mode"`
+	GainRed  int    `xml:"GainRed"`
+	GainBlue int    `xml:"GainBlue"`
+}
+
+func (c *Client) WhiteBalance(ctx context.Context, ch int) (WhiteBalance, error) {
+	path := fmt.Sprintf("/Images/%d/WhiteBalance", ch)
+	var x whiteBalanceXML
+	if err := c.getXML(ctx, path, &x); err != nil {
+		return WhiteBalance{}, err
+	}
+	return WhiteBalance(x), nil
+}
+
+func (c *Client) SetWhiteBalance(ctx context.Context, ch int, v WhiteBalance) error {
+	if err := validateChoice("Mode", v.Mode, WhiteBalanceModes...); err != nil {
+		return err
+	}
+	if err := validateRange("GainRed", v.GainRed, 0, 100); err != nil {
+		return err
+	}
+	if err := validateRange("GainBlue", v.GainBlue, 0, 100); err != nil {
+		return err
+	}
+	return c.patchAndPut(ctx, fmt.Sprintf("/Images/%d/WhiteBalance", ch), map[string]string{
+		"Mode": v.Mode, "GainRed": strconv.Itoa(v.GainRed), "GainBlue": strconv.Itoa(v.GainBlue),
+	})
+}
+
+type Exposure struct {
+	IrisType string
+	Shutter  string
+	Gain     string
+}
+
+type exposureXML struct {
+	IrisType string `xml:"IrisType"`
+	Shutter  string `xml:"shutter"`
+	Gain     string `xml:"Gain"`
+}
+
+func (c *Client) Exposure(ctx context.Context, ch int) (Exposure, error) {
+	path := fmt.Sprintf("/Images/%d/Exposure", ch)
+	var x exposureXML
+	if err := c.getXML(ctx, path, &x); err != nil {
+		return Exposure{}, err
+	}
+	return Exposure(x), nil
+}
+
+func (c *Client) SetExposure(ctx context.Context, ch int, v Exposure) error {
+	if err := validateChoice("IrisType", v.IrisType, IrisTypes...); err != nil {
+		return err
+	}
+	if err := validateChoice("shutter", v.Shutter, ExposureShutters...); err != nil {
+		return err
+	}
+	if err := validateChoice("Gain", v.Gain, ExposureGains...); err != nil {
+		return err
+	}
+	return c.patchAndPut(ctx, fmt.Sprintf("/Images/%d/Exposure", ch), map[string]string{
+		"IrisType": v.IrisType, "shutter": v.Shutter, "Gain": v.Gain,
+	})
+}
+
+type Scene struct{ FogValue string }
+
+type sceneXML struct {
+	FogValue string `xml:"FogValue"`
+}
+
+func (c *Client) Scene(ctx context.Context, ch int) (Scene, error) {
+	path := fmt.Sprintf("/Images/%d/Scene", ch)
+	var x sceneXML
+	if err := c.getXML(ctx, path, &x); err != nil {
+		return Scene{}, err
+	}
+	return Scene(x), nil
+}
+
+func (c *Client) SetScene(ctx context.Context, ch int, v Scene) error {
+	value, err := strconv.Atoi(v.FogValue)
+	if err != nil {
+		return &ValidationError{Field: "FogValue", Reason: "debe ser un entero entre 0 y 100"}
+	}
+	if err := validateRange("FogValue", value, 0, 100); err != nil {
+		return err
+	}
+	return c.patchAndPut(ctx, fmt.Sprintf("/Images/%d/Scene", ch), map[string]string{"FogValue": v.FogValue})
 }
 
 type imageColorXML struct {

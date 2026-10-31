@@ -277,6 +277,8 @@ func TestParseEventHeuristic(t *testing.T) {
 		{"plano con status start", `{"type":"videolost","ch":2,"status":"start"}`, "videolost", 2, true},
 		{"plano con state stop", `{"event":"ai","channel":"3","state":"stop"}`, "ai", 3, false},
 		{"anidado con mayúsculas", `{"Alarm":{"Type":"VideoLost","Channel":4,"Status":"off"}}`, "videolost", 4, false},
+		{"motionDetection canónico", `{"type":"motionDetection","ch":1,"status":"on"}`, "motion", 1, true},
+		{"humanDetection canónico", `{"type":"humanDetection","ch":2,"status":"off"}`, "human", 2, false},
 		{"tipo desconocido se conserva crudo", `{"type":"videoShade","ch":1}`, "videoShade", 1, true},
 		{"sin tipo", `{"foo":"bar"}`, "unknown", 0, true},
 		{"json inválido", `no es json`, "unknown", 0, true},

@@ -3,8 +3,47 @@
 <nav class="tabs">
   {{range $p.Channels}}<a class="{{if eq . $ch}}active{{end}}" href="/settings/camera/{{.}}">Cámara {{.}}</a>{{end}}
   <a href="/settings/nvr">NVR</a>
+  <a href="/settings/logs">Registros</a>
 </nav>
 <section class="settings">
+  <form class="panel" hx-put="/api/settings/{{$ch}}/osd" hx-target="find output" hx-swap="innerHTML">
+    <h2>Texto sobre la imagen (OSD)</h2>
+    {{with $p.OSD.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.OSD.V}}
+    <label class="row"><input type="checkbox" name="name_enabled" {{if .NameEnabled}}checked{{end}}> Mostrar nombre de cámara</label>
+    <label>Nombre <input type="text" name="name" value="{{.Name}}"></label>
+    <label class="row"><input type="checkbox" name="time_enabled" {{if .TimeEnabled}}checked{{end}}> Mostrar fecha y hora</label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/white-balance" hx-target="find output" hx-swap="innerHTML">
+    <h2>Balance de blancos</h2>
+    {{with $p.WhiteBalance.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.WhiteBalance.V}}
+    <label>Modo <select name="mode">{{$v := .Mode}}{{range $o := whiteBalanceModes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{choiceLabel $o}}</option>{{end}}</select></label>
+    <label>Ganancia roja <input type="range" name="gain_red" min="0" max="100" value="{{.GainRed}}"></label>
+    <label>Ganancia azul <input type="range" name="gain_blue" min="0" max="100" value="{{.GainBlue}}"></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/exposure" hx-target="find output" hx-swap="innerHTML">
+    <h2>Exposición</h2>
+    {{with $p.Exposure.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Exposure.V}}
+    <label>Tipo de iris <select name="iris">{{$v := .IrisType}}{{range $o := irisTypes}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{choiceLabel $o}}</option>{{end}}</select></label>
+    <label>Obturador <select name="shutter">{{$v := .Shutter}}{{range $o := exposureShutters}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <label>Ganancia <select name="gain">{{$v := .Gain}}{{range $o := exposureGains}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{$o}}</option>{{end}}</select></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
+  <form class="panel" hx-put="/api/settings/{{$ch}}/scene" hx-target="find output" hx-swap="innerHTML">
+    <h2>Escena</h2>
+    {{with $p.Scene.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Scene.V}}
+    <label>Desempañado <input type="range" name="fog" min="0" max="100" step="1" value="{{.FogValue}}"></label>
+    <div class="row"><button type="submit">Guardar</button><output></output></div>
+    {{end}}{{end}}
+  </form>
+
   <form class="panel" hx-put="/api/settings/{{$ch}}/color" hx-target="find output" hx-swap="innerHTML">
     <h2>Imagen</h2>
     {{with $p.Color.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Color.V}}
@@ -59,8 +98,14 @@
     <h2>Grabación</h2>
     {{with $p.Schedule.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Schedule.V}}
     <p>Horario actual: {{if eq .Mode "continuous"}}continuo (24 h, todos los días){{else if eq .Mode "off"}}sin grabación{{else}}personalizado{{end}} · flujo {{.StreamType}}</p>
-    <label>Cambiar a
-      <select name="mode"><option value="continuous">Continua</option><option value="off">Sin grabación</option></select></label>
+    <label>Modo
+      <select name="mode"><option value="continuous" {{if eq .Mode "continuous"}}selected{{end}}>Continua</option><option value="off" {{if eq .Mode "off"}}selected{{end}}>Sin grabación</option><option value="custom" {{if eq .Mode "custom"}}selected{{end}}>Personalizado</option></select></label>
+    <div class="schedule-grid" aria-label="Horario en bloques de 30 minutos">
+      {{range $d := days}}<fieldset><legend>{{dayName $d}}</legend><div class="schedule-slots">
+        {{range $h := slots}}<label title="{{slotTime $h}}"><input type="checkbox" name="{{slotName $d $h}}" {{if slotOn $.Data.Schedule.V.Days $d $h}}checked{{end}}><span>{{slotTime $h}}</span></label>{{end}}
+      </div></fieldset>{{end}}
+    </div>
+    <p class="muted">Cada casilla representa 30 minutos. El flujo se conserva como {{if eq .StreamType "main"}}principal{{else}}secundario{{end}}.</p>
     <div class="row"><button type="submit">Guardar</button><output></output></div>
     {{end}}{{end}}
   </form>

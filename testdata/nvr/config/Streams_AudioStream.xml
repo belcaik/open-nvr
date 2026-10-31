@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<AudioStream Version="1.0">
+    <AudioInMethod>microphone</AudioInMethod>
+    <AudioInCodec>G.711U</AudioInCodec>
+    <AudioInVolume>55</AudioInVolume>
+    <AudioOutVolume>65</AudioOutVolume>
+    <UnknownAudioField>preservar</UnknownAudioField>
+</AudioStream>

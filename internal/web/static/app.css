@@ -85,6 +85,23 @@ a.button:hover { border-color: var(--muted); }
 .settings label.row { display: flex; color: var(--text); }
 .settings select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); min-height: 44px; padding: 0 8px; }
 .settings p { margin: 0; }
+.schedule-grid { overflow-x: auto; display: grid; gap: 6px; }
+.schedule-grid fieldset { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 38px minmax(1150px, 1fr); align-items: center; }
+.schedule-grid legend { float: left; font-size: 12px; color: var(--muted); }
+.schedule-slots { display: grid; grid-template-columns: repeat(48, minmax(24px, 1fr)); gap: 2px; }
+.schedule-slots label { display: block; min-width: 24px; }
+.schedule-slots input { position: absolute; opacity: 0; pointer-events: none; }
+.schedule-slots span { display: block; height: 26px; overflow: hidden; color: transparent; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
+.schedule-slots input:checked + span { background: var(--accent); border-color: var(--accent); }
+.schedule-slots input:focus + span { outline: 2px solid var(--text); }
+.logs { max-width: 1200px; }
+.log-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.log-filters label { display: grid; gap: 4px; color: var(--muted); font-size: 13px; }
+.log-filters select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); min-height: 44px; padding: 0 8px; color: var(--text); }
+.table-scroll { overflow-x: auto; }
+.logs table { width: 100%; border-collapse: collapse; }
+.logs th, .logs td { padding: 7px 9px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.logs th { color: var(--muted); font-weight: 500; }
 .muted { color: var(--muted); font-size: 13px; }
 .recordings { display: grid; gap: 12px; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
 .calendar table { width: 100%; border-collapse: collapse; text-align: center; }
