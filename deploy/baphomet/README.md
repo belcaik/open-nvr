@@ -272,13 +272,40 @@ a H.264 para el navegador. `PLAYBACK_SOURCE_BASE_URL` es opcional y por defecto
 usa `http://<WEB_LISTEN>/internal/playback`; sólo hace falta cambiarlo si go2rtc
 debe alcanzar esa fuente por otra dirección. En **Directo > Cámara**, **Mantener
 Hablar** captura el micrófono durante la pulsación y lo libera al soltar; requiere
-HTTPS o localhost y permiso del navegador. **Incidencia conocida (2026-10-30):**
-el propietario confirma que las grabaciones se ven, pero el envío real de audio
-a las cámaras falla y permanece pendiente de diagnóstico.
+HTTPS o localhost y permiso del navegador. La revisión del 2026-10-31 validó la
+cadena real en canales 1 y 2; canal 4 rechaza el inicio con `Result=1`. La UI
+muestra ahora el motivo del cierre y `opennvr-web` registra el error P6S. Falta
+la confirmación audible del propietario tras desplegar esta versión.
 
-El cambio de contraseña interna de una IPC sigue sin exponerse: todavía no hay
-una captura que demuestre el comando y el destino correctos. Editar sólo la
-credencial guardada por el NVR no equivale a cambiarla dentro de la cámara.
+En **Configuración** hay OSD, balance de blancos, exposición, escena, horario
+personalizado de 7×48 bloques, audio global y P2P. **Registros** consulta y
+exporta CSV cuando el firmware lo permite; este NVR responde `statusCode=-5` a
+`/System/Logging`, por lo que la página mostrará ese error.
+
+El cambio de contraseña interna de una IPC sigue sin exponerse: la segunda
+investigación REA tampoco encontró un comando y destino demostrados. Editar sólo
+la credencial guardada por el NVR no equivale a cambiarla dentro de la cámara.
+
+### Pendientes del propietario para desplegar (2026-10-31)
+
+1. Revisar el diff, crear el commit/PR y fusionarlo en `main`. Esperar a que
+   **tests and images** termine y publique `ghcr.io/belcaik/open-nvr:latest`.
+2. En Baphomet ejecutar el paso 4 anterior (`git pull`, `podman-compose pull
+   web go2rtc` y recrear `web`/`go2rtc`). No hace falta recrear secretos ni
+   Caddy. Comprobar `healthz` y los logs de `opennvr-web`.
+3. En **Configuración**, verificar el OSD de canal 1 y guardar el nombre
+   definitivo. Revisar antes de guardar horario, audio y P2P: son cambios reales
+   en el NVR. P2P aparecía activado pero `offline` por el bloqueo de salida.
+4. Probar audiblemente **Mantener Hablar** en canales 1 y 2. Canal 4 rechaza la
+   sesión en el propio NVR; no reintentar en bucle. Si otro canal falla, copiar
+   el motivo mostrado y la línea `talk canal …` de `sudo podman logs
+   --tail 50 opennvr-web`.
+5. Para cerrar la contraseña débil de las IPC, concertar acceso directo temporal
+   al segmento PoE. Cambiar una cámara cada vez en su propia interfaz y después
+   actualizar la credencial almacenada en el NVR, verificando vídeo antes de
+   seguir. No usar `SetCfg`/`TransparentData` a ciegas.
+6. Los registros quedan pendientes del firmware/fabricante (`-5`), no de un paso
+   de despliegue. No hace falta reintentarlos durante la puesta en marcha.
 
 Vuelta atrás: `sudo podman-compose stop web go2rtc` y restaurar la imagen
 anterior de Caddy.

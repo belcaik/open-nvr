@@ -189,3 +189,29 @@ stop/destroy correctos. Histórico: MultiType/seek/cierre correctos y clip
 no validado por ese clip. Descarga y auxiliares permanecen sin evidencia runtime
 suficiente. Validación final: `go test -race ./...`, `go vet ./...` y
 `git diff --check` pasan.
+
+## Audio real, IPC y funciones de configuración (2026-10-31)
+
+Se repitió `discover`: Claude 2.1.304, Codex 0.163.0, Kimi **2.4.1** y Grok
+1.0.70. La actualización de Kimi quedó validada con `run-7b1934a3`, **passed**,
+28,42 s y el artefacto `ok-kimi-2.4.1`.
+
+| Run | Agente | Objetivo | Estado | Duración |
+|---|---|---|---|---|
+| run-689c2638 | codex | OSD, imagen, horario 7×48, P2P, audio, logs y eventos | passed | 325,22 s |
+| run-47a4bd25 | grok | Investigación REA de cambio de contraseña dentro de IPC | passed | 551,95 s |
+
+Cada agente trabajó en un workspace separado y sin credenciales. La integración
+y las pruebas reales fueron del proceso principal. La investigación REA amplió
+los inventarios completos de exports/imports de `VideoNetClient.dll`,
+`VNetCIU.dll`, `EvPlugs.dll` y `EasyVideo.exe`; no encontró una ruta segura de
+cambio de contraseña dentro de una IPC. Sólo demuestra actualizar la credencial
+que el NVR guarda para conectarse, o usuarios del dispositivo de la sesión.
+
+La voz real se validó con 50 tramas de tono y 250 de silencio mediante la ruta
+WebSocket completa y Chromium con micrófono simulado. Canales 1 y 2 aceptan la
+sesión; canal 4 devuelve `Result=1` al iniciar voz. La captura oficial contiene
+2.708 tramas salientes con la misma extensión de 44 bytes, por lo que reutilizar
+la fixture es correcto. OSD se cambió y restauró; imagen, horario y audio
+aceptaron sus valores actuales. `/System/Logging` devolvió `-5` en todos los
+tipos y rangos probados y queda señalado como no disponible en este firmware.

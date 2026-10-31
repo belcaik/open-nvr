@@ -20,7 +20,7 @@ están enlazadas en cada apartado.
 | Iluminación IR/blanca | `PUT /PTZ/1/Light`; configuración en `/Images/{ch}/IrCutFilter` | ✅ Probado |
 | Captura JPEG | `GET /Snapshot/1/RemoteImageCapture?ImageFormat=2` | ✅ |
 | Eventos | WebSocket `/WebSocket/Connect` (`fun=event`) | ✅ Conecta; movimiento desactivado |
-| Audio bidireccional | Protocolo privado P6S: `VoiceStream*` en 6060 y μ-law de 320 B/40 ms en 6066 ([p6s-protocol.md](p6s-protocol.md)). El backchannel RTSP se ignora | ❌ El envío real a las cámaras falla según la verificación del propietario; pendiente de diagnóstico |
+| Audio bidireccional | Protocolo privado P6S: `VoiceStream*` en 6060 y μ-law de 320 B/40 ms en 6066 ([p6s-protocol.md](p6s-protocol.md)). El backchannel RTSP se ignora | 🟡 250 tramas WebSocket/P6S reales en canal 1 y sesión correcta en canal 2; canal 4 rechaza el inicio (`Result=1`). Falta la verificación audible del propietario |
 | Grabaciones | Búsqueda por HTTP (`/Playback/GetRecordInfoBy*`), reproducción por P6S `HistoryStream*` | ✅ Reproducción web H.264 con pausa, seek, reconexión y cierre; descarga pendiente |
 | Configuración | API HTTP/XML (ver [api-reference.md](api-reference.md)) | ✅ Documentada |
 

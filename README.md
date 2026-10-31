@@ -18,9 +18,10 @@ Etapas 0–2 completadas y etapa 3 (auditoría) documentada. La etapa 4
 | Pan/tilt, zoom (hasta 6.8X), presets, luz | ✅ Por API HTTP propietaria |
 | Captura JPEG y eventos por WebSocket | ✅ |
 | ONVIF | ❌ El NVR no lo ofrece |
-| Audio bidireccional | 🟡 Login, framing y PCMU implementados offline ([p6s-protocol.md](docs/p6s-protocol.md)); falta validar contra el NVR y completar la sesión de voz |
-| Grabación | ⚠️ Disco sin formatear y grabación detenida |
-| Cámaras 2–4 | ❓ Solo hay una cámara registrada |
+| Audio bidireccional | 🟡 PCM/WebSocket/P6S validados en canales 1 y 2; canal 4 rechaza `VoiceStreamStart` (`Result=1`) y la verificación del propietario sigue pendiente |
+| Grabación y reproducción | ✅ Grabación continua y reproducción web H.264 |
+| Configuración de cámaras | ✅ OSD, imagen, IR, movimiento, horario 7×48, audio y P2P; registros dependen de `/System/Logging`, que responde `-5` en este firmware |
+| Cámaras registradas | ✅ Canales 1, 2 y 4 en la última comprobación |
 | Salida a Internet bloqueada | ✅ El NVR sale por Baphomet (192.168.0.8), descarte por defecto; P2P `offline` |
 
 Leyenda: ✅ comprobado · ❌ no disponible · ⚠️ requiere acción · ❓ pendiente ·
