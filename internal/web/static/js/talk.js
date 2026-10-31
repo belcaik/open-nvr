@@ -105,11 +105,12 @@ if (button && status) {
         resources.socket.send(event.data);
       };
       resources.source.connect(resources.worklet).connect(resources.gain).connect(resources.context.destination);
-      resources.socket.addEventListener("close", () => {
+      resources.socket.addEventListener("close", (event) => {
         if (active !== resources || resources.stopping) return;
         active = null;
         cleanup(resources);
-        state("error", "Se perdió la conexión del micrófono");
+        const detail = event.reason ? `: ${event.reason}` : "";
+        state("error", `Se perdió la conexión del micrófono${detail}`);
       });
       state("active", "Hablando");
     } catch (error) {

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/p6s/voice"
 	"github.com/coder/websocket"
 )
@@ -51,7 +52,12 @@ func (s *server) talk(w http.ResponseWriter, r *http.Request) {
 	session, err := s.d.Talk.Open(ctx, channel)
 	if err != nil {
 		cancel()
-		_ = conn.Close(websocket.StatusInternalError, "No se pudo abrir el micrófono")
+		logx.Printf("talk canal %d: abrir voz: %v", channel, err)
+		reason := "No se pudo abrir el micrófono"
+		if errors.Is(err, voice.ErrResult) || errors.Is(err, voice.ErrCmdReply) {
+			reason = "La cámara rechazó la sesión de audio"
+		}
+		_ = conn.Close(websocket.StatusPolicyViolation, reason)
 		return
 	}
 	defer session.Close()
@@ -90,6 +96,7 @@ func (s *server) talk(w http.ResponseWriter, r *http.Request) {
 	case websocket.CloseStatus(err) == websocket.StatusNormalClosure || websocket.CloseStatus(err) == websocket.StatusGoingAway:
 		// El peer ya inició el cierre normal.
 	default:
+		logx.Printf("talk canal %d: sesión interrumpida: %v", channel, err)
 		_ = conn.Close(websocket.StatusInternalError, "Se interrumpió el micrófono")
 	}
 	cancel()

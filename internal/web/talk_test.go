@@ -72,6 +72,22 @@ func TestTalkWebSocketAcceptsOnePCMFrameAndClosesSession(t *testing.T) {
 	}
 }
 
+func TestTalkWebSocketReportsCameraRejectingVoice(t *testing.T) {
+	e := newEnv(t)
+	e.talk.err = voice.ErrResult
+	conn, server := dialTalk(t, e, 4)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, _, err := conn.Read(ctx)
+	if got := websocket.CloseStatus(err); got != websocket.StatusPolicyViolation {
+		t.Fatalf("cierre = %d (%v); esperado %d", got, err, websocket.StatusPolicyViolation)
+	}
+	if !strings.Contains(err.Error(), "La cámara rechazó la sesión de audio") {
+		t.Fatalf("cierre sin motivo de la cámara: %v", err)
+	}
+}
+
 func TestTalkWebSocketRejectsInvalidAudio(t *testing.T) {
 	tests := []struct {
 		name string

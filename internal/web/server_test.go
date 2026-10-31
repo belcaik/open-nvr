@@ -46,12 +46,16 @@ type fakeTalk struct {
 	mu      sync.Mutex
 	channel int
 	session *fakeTalkSession
+	err     error
 }
 
 func (f *fakeTalk) Open(_ context.Context, channel int) (talk.Session, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.channel = channel
+	if f.err != nil {
+		return nil, f.err
+	}
 	if f.session == nil {
 		f.session = newFakeTalkSession()
 	}
