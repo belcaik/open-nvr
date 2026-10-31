@@ -215,3 +215,8 @@ sesión; canal 4 devuelve `Result=1` al iniciar voz. La captura oficial contiene
 la fixture es correcto. OSD se cambió y restauró; imagen, horario y audio
 aceptaron sus valores actuales. `/System/Logging` devolvió `-5` en todos los
 tipos y rangos probados y queda señalado como no disponible en este firmware.
+
+Corrección posterior (T97): la conclusión estática sobre contraseñas quedó
+refutada por una prueba reversible en el equipo. `FrontConnectDevicetList` con
+`ActionState=modify` sí cambió la clave dentro de la IPC y la restauró después.
+La evidencia runtime tiene prioridad sobre la inferencia estática anterior.

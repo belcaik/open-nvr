@@ -282,9 +282,10 @@ personalizado de 7×48 bloques, audio global y P2P. **Registros** consulta y
 exporta CSV cuando el firmware lo permite; este NVR responde `statusCode=-5` a
 `/System/Logging`, por lo que la página mostrará ese error.
 
-El cambio de contraseña interna de una IPC sigue sin exponerse: la segunda
-investigación REA tampoco encontró un comando y destino demostrados. Editar sólo
-la credencial guardada por el NVR no equivale a cambiarla dentro de la cámara.
+**Configuración > Cámara > Contraseña de la cámara** cambia la clave individual
+dentro de la IPC y actualiza la credencial del NVR. La operación verifica que la
+cámara vuelve a conectar y restaura la anterior si falla. Esta vía quedó probada
+realmente en T97, corrigiendo la conclusión anterior basada sólo en estática.
 
 ### Pendientes del propietario para desplegar (2026-10-31)
 
@@ -292,7 +293,9 @@ la credencial guardada por el NVR no equivale a cambiarla dentro de la cámara.
    **tests and images** termine y publique `ghcr.io/belcaik/open-nvr:latest`.
 2. En Baphomet ejecutar el paso 4 anterior (`git pull`, `podman-compose pull
    web go2rtc` y recrear `web`/`go2rtc`). No hace falta recrear secretos ni
-   Caddy. Comprobar `healthz` y los logs de `opennvr-web`.
+   Caddy. Comprobar `healthz` y los logs de `opennvr-web`. Confirmar que
+   `curl -s https://nvr.belcaik.com/static/js/talk.js` contiene `event.reason`;
+   si no, la imagen sigue siendo antigua aunque el navegador se haya recargado.
 3. En **Configuración**, verificar el OSD de canal 1 y guardar el nombre
    definitivo. Revisar antes de guardar horario, audio y P2P: son cambios reales
    en el NVR. P2P aparecía activado pero `offline` por el bloqueo de salida.
@@ -300,10 +303,9 @@ la credencial guardada por el NVR no equivale a cambiarla dentro de la cámara.
    sesión en el propio NVR; no reintentar en bucle. Si otro canal falla, copiar
    el motivo mostrado y la línea `talk canal …` de `sudo podman logs
    --tail 50 opennvr-web`.
-5. Para cerrar la contraseña débil de las IPC, concertar acceso directo temporal
-   al segmento PoE. Cambiar una cámara cada vez en su propia interfaz y después
-   actualizar la credencial almacenada en el NVR, verificando vídeo antes de
-   seguir. No usar `SetCfg`/`TransparentData` a ciegas.
+5. Para cerrar la contraseña débil, usar **Configuración > Cámara > Contraseña
+   de la cámara**, una cámara cada vez y una clave distinta y robusta. Esperar la
+   confirmación de conexión y comprobar vídeo antes de pasar a la siguiente.
 6. Los registros quedan pendientes del firmware/fabricante (`-5`), no de un paso
    de despliegue. No hace falta reintentarlos durante la puesta en marcha.
 
