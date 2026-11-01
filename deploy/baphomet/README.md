@@ -284,7 +284,8 @@ ya habla por esa cámara, aparece «El audio de esta cámara está en uso por ot
 sesión» tras unos 3 s.
 
 En **Configuración** hay OSD, balance de blancos, exposición, escena, horario
-personalizado de 7×48 bloques, audio global y P2P. **Registros** consulta y
+personalizado de 7×48 bloques, audio global y P2P. El firmware acepta pero ignora
+el volumen y la entrada del audio global; la página lo indica (T103). **Registros** consulta y
 exporta CSV. El `statusCode=-5` anterior se debía a que open-nvr codificaba `:`
 como `%3A`, que este NVR no acepta (corregido en T101).
 

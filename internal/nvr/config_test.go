@@ -219,6 +219,7 @@ func TestConfigurationSETsPatchCurrentXML(t *testing.T) {
 	assertLastPUT(t, f, "/Pictures/1/Motion", "Pictures_1_Motion.xml", map[string]string{
 		"Enable": "true", "Senstive": "high",
 	})
+	f.echoPUT("/Streams/AudioStream")
 	if err := c.SetAudioStream(ctx, AudioStream{InputMethod: "line-in", Codec: "G.711A", InputVolume: 45, HasOutputVolume: true, OutputVolume: 75}); err != nil {
 		t.Fatal(err)
 	}
@@ -242,12 +243,25 @@ func TestAudioStreamWithoutOutputVolume(t *testing.T) {
 		t.Fatalf("AudioStream = %+v, %v", v, err)
 	}
 	v.InputVolume = 10
+	f.echoPUT("/Streams/AudioStream")
 	if err := c.SetAudioStream(context.Background(), v); err != nil {
 		t.Fatal(err)
 	}
 	body := f.last(t, "PUT", "/Streams/AudioStream").body
 	if !strings.Contains(body, "<AudioInVolume>10</AudioInVolume>") || strings.Contains(body, "AudioOutVolume") {
 		t.Fatalf("PUT sin volumen de salida: %s", body)
+	}
+}
+
+// Este firmware responde statusCode 0 a PUT /Streams/AudioStream pero no
+// guarda el cambio (T103): hay que releer y no anunciar "guardado".
+func TestSetAudioStreamReportsIgnoredChange(t *testing.T) {
+	f, c := newFakeNVR(t)
+	f.raw["GET /Streams/AudioStream"] = []byte(`<AudioStream><AudioInMethod>microphone</AudioInMethod><AudioInCodec>G.711U</AudioInCodec><AudioInVolume>0</AudioInVolume></AudioStream>`)
+	err := c.SetAudioStream(context.Background(), AudioStream{InputMethod: "line-in", Codec: "G.711U", InputVolume: 40})
+	var ignored *NotAppliedError
+	if !errors.As(err, &ignored) || ignored.Path != "/Streams/AudioStream" {
+		t.Fatalf("error = %v, quiero NotAppliedError", err)
 	}
 }
 
