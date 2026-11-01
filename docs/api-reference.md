@@ -138,13 +138,13 @@ Clases: **READ** = GET sin efecto lateral aparente; **WRITE-REVERSIBLE** = cambi
 `ProtocolType` se obtiene del `Type0` de `/Protocol.html`; la UI muestra ese protocolo privado con su `Name0`, añade explícitamente `6 = ONVIF`, y para alta RTSP fuerza `ProtocolType=6`, `RtspConnectFlag=true`, guardando `RtspUrl` y `Domain` (substream) codificados en Base64 (`videoManagement.js:267-281,516-566`). No se puede concluir que el valor privado sea siempre `3`, aunque el render lo etiqueta con el nombre privado cuando vale `3` (`videoManagement.js:837-840`). `ActionState` observado: `manual_add`, `auto_add`, `modify`, `delete`.
 
 `weak password` es un estado mostrado en la tabla; no abre por sí solo una
-operación de cambio de clave. Aunque el análisis estático sólo permitía afirmar
-que `ActionState=modify` actualizaba la credencial guardada por el NVR, la prueba
-real T97 demostró que en este firmware también cambia la contraseña dentro de la
-IPC: una clave temporal pasó a `connect success` y la original quedó restaurada
-después, volviendo a `weak password`. El PUT debe contener un único `DevConnect`
-con todos sus campos y `ActionState=modify`. Tras cambiarla hay que verificar el
-estado; `login failed` exige restaurar la credencial anterior.
+operación de cambio de clave. `ActionState=modify` **sólo cambia la credencial
+que guarda el NVR** (T104, que refuta T97): con una clave nueva la cámara quedó en
+`login failed` y el NVR devolvía esa clave en claro. `Password` vacío en `modify`
+se ignora, así que no sirve para volver a la clave de fábrica, que es vacía. La
+recuperación que funcionó fue `ActionState=delete` del canal (como `deleteDev` de
+la UI): el NVR volvió a añadir la cámara sola (~12 s, mismo canal) con la
+credencial vacía y quedó en `weak password`.
 
 ## 1. PTZ, zoom, foco, iris y presets
 
