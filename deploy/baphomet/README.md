@@ -289,13 +289,11 @@ el volumen y la entrada del audio global; la página lo indica (T103). **Registr
 exporta CSV. El `statusCode=-5` anterior se debía a que open-nvr codificaba `:`
 como `%3A`, que este NVR no acepta (corregido en T101).
 
-**Configuración > Cámara > Contraseña de la cámara** cambia la clave individual
-dentro de la IPC y actualiza la credencial del NVR. La cámara debe estar
-conectada. Sólo se confirma si el NVR muestra una transición (desconexión o
-cambio de estado); si no, se restaura la anterior y se verifica esa restauración.
-Si tampoco se confirma, la página pide revisar la cámara. Puede tardar hasta 15 s.
-Esta vía quedó probada realmente en T97; la confirmación por transición (T100)
-sólo está probada con dobles y debe verificarse en el primer cambio real.
+El cambio de contraseña por cámara **se retiró** (T104): sólo cambiaba la
+credencial guardada en el NVR, no la de la cámara, y dejó una cámara en
+`login failed`. Si una cámara queda así tras editar su clave en la interfaz
+oficial, se recupera eliminando el canal: el NVR la vuelve a añadir sola con la
+credencial de fábrica (vacía).
 
 ### Pendientes del propietario para desplegar (2026-10-31)
 
@@ -314,9 +312,7 @@ sólo está probada con dobles y debe verificarse en el primer cambio real.
    reconectar cámaras: identificarlas por MAC. Si un canal falla, copiar
    el motivo mostrado y la línea `talk canal …` de `sudo podman logs
    --tail 50 opennvr-web`.
-5. Para cerrar la contraseña débil, usar **Configuración > Cámara > Contraseña
-   de la cámara**, una cámara cada vez y una clave distinta y robusta. Esperar la
-   confirmación de conexión y comprobar vídeo antes de pasar a la siguiente.
+5. No cambiar contraseñas de cámara desde el NVR: no llega a la IPC (T104).
 6. Registros: desde T101 deben listar eventos; si vuelve `-5`, avisar.
 
 Vuelta atrás: `sudo podman-compose stop web go2rtc` y restaurar la imagen
