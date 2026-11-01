@@ -285,7 +285,8 @@ sesión» tras unos 3 s.
 
 En **Configuración** hay OSD, balance de blancos, exposición, escena, horario
 personalizado de 7×48 bloques, audio global y P2P. El firmware acepta pero ignora
-el volumen y la entrada del audio global; la página lo indica (T103). **Registros** consulta y
+el volumen y la entrada del audio global: el cambio se aplica (el micrófono se
+oye), pero el NVR siempre relee los valores de fábrica; la página lo indica (T105). **Registros** consulta y
 exporta CSV. El `statusCode=-5` anterior se debía a que open-nvr codificaba `:`
 como `%3A`, que este NVR no acepta (corregido en T101).
 
@@ -294,6 +295,11 @@ credencial guardada en el NVR, no la de la cámara, y dejó una cámara en
 `login failed`. Si una cámara queda así tras editar su clave en la interfaz
 oficial, se recupera eliminando el canal: el NVR la vuelve a añadir sola con la
 credencial de fábrica (vacía).
+
+**Configuración > Cámara > Credencial de la cámara en el NVR** guarda el usuario
+y la clave con los que el NVR inicia sesión en la cámara, y espera hasta 20 s a
+que reconecte. Úsalo sólo después de cambiar la clave en la propia cámara
+(conectada por cable a un PC): si no coinciden, queda en `login failed`.
 
 ### Pendientes del propietario para desplegar (2026-10-31)
 

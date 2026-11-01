@@ -20,7 +20,7 @@ Etapas 0–2 completadas y etapa 3 (auditoría) documentada. La etapa 4
 | ONVIF | ❌ El NVR no lo ofrece |
 | Audio bidireccional | 🟡 PCM/WebSocket/P6S validados en canales 1 y 2; corregidas la «pérdida de conexión» (T99) y la voz en la cámara anterior por usar canal base 0 (T102). Falta la verificación audible de todas las cámaras |
 | Grabación y reproducción | ✅ Grabación continua y reproducción web H.264 |
-| Configuración de cámaras | ✅ OSD, imagen, IR, movimiento, horario 7×48, P2P, registros (`/System/Logging` exige la query sin codificar `:`, T101) y audio global (el firmware ignora volumen y entrada, T103) |
+| Configuración de cámaras | ✅ Credencial de cada cámara en el NVR (tras cambiar la clave en la propia cámara), OSD, imagen, IR, movimiento, horario 7×48, P2P, registros (`/System/Logging` exige la query sin codificar `:`, T101) y audio global (se aplica, pero el NVR relee siempre los valores de fábrica, T105) |
 | Cámaras registradas | ✅ Canales 1, 2 y 4 en la última comprobación |
 | Salida a Internet bloqueada | ✅ El NVR sale por Baphomet (192.168.0.8), descarte por defecto; P2P `offline` |
 
