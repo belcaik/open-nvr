@@ -103,6 +103,22 @@ func (f *fakeNVR) handle(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, file)
 }
 
+// echoPUT hace que GET path devuelva el último cuerpo recibido por PUT path,
+// como un NVR que sí guarda el cambio.
+func (f *fakeNVR) echoPUT(path string) {
+	f.hook = func(key string) ([]byte, bool) {
+		if key != "GET "+path {
+			return nil, false
+		}
+		for i := len(f.reqs) - 1; i >= 0; i-- {
+			if f.reqs[i].method == http.MethodPut && f.reqs[i].uri == path {
+				return []byte(f.reqs[i].body), true
+			}
+		}
+		return nil, false
+	}
+}
+
 // setRoute apunta una ruta a otro fixture (p. ej. una respuesta de error).
 func (f *fakeNVR) setRoute(key, file string) {
 	f.mu.Lock()

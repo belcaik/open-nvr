@@ -344,6 +344,15 @@ func TestPutCameraPasswordReportsRollbackOutcome(t *testing.T) {
 	}
 }
 
+func TestPutAudioReportsChangeIgnoredByNVR(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	cfg.err = &nvr.NotAppliedError{Path: "/Streams/AudioStream"}
+	rec := e.do(e.authed(t, "PUT", "/api/settings/nvr/audio", url.Values{"input_method": {"line-in"}, "codec": {"G.711U"}, "input_volume": {"40"}}))
+	if rec.Code != 502 || !strings.Contains(rec.Body.String(), "no aplicó el cambio") || strings.Contains(rec.Body.String(), "Audio guardado") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+}
+
 func TestPutCameraPasswordMismatchDoesNotWrite(t *testing.T) {
 	e, cfg, _ := newFullEnv(t)
 	rec := e.do(e.authed(t, "PUT", "/api/settings/2/password", url.Values{"password": {"Clave2026segura"}, "confirmation": {"otra2026"}}))

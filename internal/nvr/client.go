@@ -37,6 +37,16 @@ func (e *BadResponseError) Error() string {
 	return fmt.Sprintf("nvr: %s: respuesta HTTP %d inesperada", e.Path, e.HTTP)
 }
 
+// NotAppliedError: el NVR confirmó la escritura (statusCode 0) pero al releer
+// la configuración sigue igual. Este firmware lo hace con /Streams/AudioStream.
+type NotAppliedError struct {
+	Path string
+}
+
+func (e *NotAppliedError) Error() string {
+	return fmt.Sprintf("nvr: %s: el NVR aceptó el cambio pero no lo aplicó", e.Path)
+}
+
 const (
 	// controlTimeout vale para lecturas y comandos PTZ.
 	controlTimeout = 5 * time.Second
