@@ -87,8 +87,10 @@ func TestSessionConvertsOnePCMFrameAndClosesVoice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if gotChannel != 2 {
-		t.Fatalf("canal P6S = %d; esperado 2", gotChannel)
+	// El canal de voz P6S es el ChannelID del NVR: Channel=1 sonó en la
+	// cámara del canal 1 (T102).
+	if gotChannel != 3 {
+		t.Fatalf("canal P6S = %d; esperado 3", gotChannel)
 	}
 	if len(voiceSession.frames) != 1 || len(voiceSession.frames[0]) != voice.PCMUFrameBytes {
 		t.Fatalf("frames PCMU: %#v", voiceSession.frames)

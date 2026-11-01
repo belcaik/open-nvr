@@ -20,7 +20,7 @@ const (
 )
 
 // Config describe una sesión de voz corta sobre conexiones ya abiertas.
-// Channel es base 0. VoiceMode, TransferMode y StreamType por defecto son
+// Channel es el ChannelID del NVR (base 1, T102). VoiceMode, TransferMode y StreamType por defecto son
 // los de la captura (2, 1, 0). No hay Dial.
 type Config struct {
 	Channel        int

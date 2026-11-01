@@ -51,7 +51,7 @@ El `ID` de las respuestas es el de la petición + 1.
 | `RealStreamStartRequest MediaSession` (138) | `…Reply Result="0"` (139) | Iniciar |
 | `RemoteForceIFrame Channel` (106) | `…Reply CmdReply="0"` (107) | Pedir un fotograma clave |
 | `RealStreamStopRequest` / `RealStreamDestroyRequest` (140/142) | `Result="0"` | Parar y liberar |
-| `VoiceStreamCreateRequest Channel="0" VoiceMode="2" TransferMode="1" StreamType="0"` (148) | `VoiceStreamCreateReply MediaFlag="<id>" CmdReply="0"` (149). Con el canal ocupado: `MediaFlag="-1" CmdReply="1"` | Crear sesión de voz con la cámara. **Una sesión por canal** (canales distintos sí en paralelo); el canal queda libre cuando llega `VoiceStreamDestroyReply`, ~1 s después de Stop (T99) |
+| `VoiceStreamCreateRequest Channel="1" VoiceMode="2" TransferMode="1" StreamType="0"` (148) | `VoiceStreamCreateReply MediaFlag="<id>" CmdReply="0"` (149). Con el canal ocupado: `MediaFlag="-1" CmdReply="1"` | Crear sesión de voz con la cámara. **`Channel` es el `ChannelID` del NVR (base 1)**, a diferencia de `RealStream` (base 0): `Channel=1` sonó en la cámara del canal 1; con cámaras en 1–4 se aceptan 1–4 y `Channel=5` da `VoiceStreamStart Result=1`; `0` también se acepta, con destino sin verificar (T102). **Una sesión por canal** (canales distintos sí en paralelo); el canal queda libre cuando llega `VoiceStreamDestroyReply`, ~1 s después de Stop (T99) |
 | `VoiceStreamStartRequest MediaSession` (150) | `Result="0"` (151) | Iniciar la voz |
 | `VoiceStreamStopRequest` / `VoiceStreamDestroyRequest MediaFlag` (152/154) | `Result="0"` / `CmdReply="1"` | Parar y liberar |
 

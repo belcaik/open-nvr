@@ -18,7 +18,7 @@ Etapas 0–2 completadas y etapa 3 (auditoría) documentada. La etapa 4
 | Pan/tilt, zoom (hasta 6.8X), presets, luz | ✅ Por API HTTP propietaria |
 | Captura JPEG y eventos por WebSocket | ✅ |
 | ONVIF | ❌ El NVR no lo ofrece |
-| Audio bidireccional | 🟡 PCM/WebSocket/P6S validados en canales 1 y 2; corregida la «pérdida de conexión» por sesión de voz ocupada (T99). Canal 4 rechaza `VoiceStreamStart` (`Result=1`) y falta la verificación audible del propietario |
+| Audio bidireccional | 🟡 PCM/WebSocket/P6S validados en canales 1 y 2; corregidas la «pérdida de conexión» (T99) y la voz en la cámara anterior por usar canal base 0 (T102). Falta la verificación audible de todas las cámaras |
 | Grabación y reproducción | ✅ Grabación continua y reproducción web H.264 |
 | Configuración de cámaras | ✅ Contraseña individual, OSD, imagen, IR, movimiento, horario 7×48, audio, P2P y registros (`/System/Logging` exige la query sin codificar `:`, T101) |
 | Cámaras registradas | ✅ Canales 1, 2 y 4 en la última comprobación |
