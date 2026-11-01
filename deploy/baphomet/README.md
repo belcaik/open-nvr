@@ -273,9 +273,9 @@ usa `http://<WEB_LISTEN>/internal/playback`; sólo hace falta cambiarlo si go2rt
 debe alcanzar esa fuente por otra dirección. En **Directo > Cámara**, **Mantener
 Hablar** captura el micrófono durante la pulsación y lo libera al soltar; requiere
 HTTPS o localhost y permiso del navegador. La revisión del 2026-10-31 validó la
-cadena real en canales 1 y 2; canal 4 rechaza el inicio con `Result=1`. La UI
-muestra ahora el motivo del cierre y `opennvr-web` registra el error P6S. Falta
-la confirmación audible del propietario tras desplegar esta versión.
+cadena real en canales 1 y 2. Hasta T102 la voz salía por la cámara del canal
+anterior (se enviaba `ChannelID-1`); de ahí también el rechazo del canal 4. La UI
+muestra el motivo del cierre y `opennvr-web` registra el error P6S.
 
 El NVR admite **una sesión de voz por canal**. Desde T99 el servidor espera a que
 termine el cierre de la anterior (~1 s) antes de abrir otra y la UI sólo muestra
@@ -308,8 +308,9 @@ sólo está probada con dobles y debe verificarse en el primer cambio real.
 3. En **Configuración**, verificar el OSD de canal 1 y guardar el nombre
    definitivo. Revisar antes de guardar horario, audio y P2P: son cambios reales
    en el NVR. P2P aparecía activado pero `offline` por el bloqueo de salida.
-4. Probar audiblemente **Mantener Hablar** en canales 1 y 2. Canal 4 rechaza la
-   sesión en el propio NVR; no reintentar en bucle. Si otro canal falla, copiar
+4. Probar audiblemente **Mantener Hablar** en cada cámara y confirmar que suena
+   la cámara cuyo vídeo se ve (T102). El NVR puede reasignar canales al
+   reconectar cámaras: identificarlas por MAC. Si un canal falla, copiar
    el motivo mostrado y la línea `talk canal …` de `sudo podman logs
    --tail 50 opennvr-web`.
 5. Para cerrar la contraseña débil, usar **Configuración > Cámara > Contraseña

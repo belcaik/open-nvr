@@ -98,7 +98,9 @@ func (a *Adapter) Open(ctx context.Context, channel int) (Session, error) {
 		return nil, fmt.Errorf("talk: abrir transporte autenticado: %w", err)
 	}
 	cfg := a.VoiceConfig
-	cfg.Channel = channel - 1
+	// VoiceStreamCreate usa el ChannelID del NVR (base 1), no el índice base 0
+	// de RealStream: con channel-1 la voz sonaba en la cámara anterior (T102).
+	cfg.Channel = channel
 	opened, err := a.OpenVoice(ctx, command, media, cfg)
 	if err != nil {
 		closeConn(command)

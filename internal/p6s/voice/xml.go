@@ -22,8 +22,8 @@ const (
 	VoiceStreamDestroyReplyID   = 155
 )
 
-// ErrNegativeChannel rechaza un canal menor que 0. El canal P6S es base 0:
-// el primer canal es 0.
+// ErrNegativeChannel rechaza un canal menor que 0. En VoiceStream el canal
+// es el ChannelID del NVR (base 1, T102).
 var ErrNegativeChannel = errors.New("canal negativo")
 
 // ErrResult rechaza un Result o CmdReply ausente o no entero.
