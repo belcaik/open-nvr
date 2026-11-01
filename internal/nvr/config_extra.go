@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 )
@@ -202,7 +201,7 @@ type logListXML struct {
 		MinorType     string `xml:"minorType"`
 		Channel       string `xml:"channel"`
 		IPConflictMAC string `xml:"IpConflictMac"`
-	} `xml:"LogList>Log"`
+	} `xml:"Log"` // la raíz de la respuesta ya es <LogList>
 }
 
 func (c *Client) Logs(ctx context.Context, majorType string, start, stop time.Time) ([]LogEntry, error) {
@@ -212,12 +211,10 @@ func (c *Client) Logs(ctx context.Context, majorType string, start, stop time.Ti
 	if stop.Before(start) || stop.Sub(start) > 31*24*time.Hour {
 		return nil, &ValidationError{Field: "rango", Reason: "debe estar ordenado y no superar 31 días"}
 	}
-	q := url.Values{
-		"majorType": {majorType}, "minorType": {"0"},
-		"startTime": {start.Format("2006-01-02T15:04:05")},
-		"stopTime":  {stop.Format("2006-01-02T15:04:05")},
-	}
-	path := "/System/Logging?" + q.Encode()
+	// El NVR no decodifica %3A y responde -5: la query va literal, como en la
+	// UI oficial. majorType está validado y las fechas sólo llevan [0-9T:-].
+	const layout = "2006-01-02T15:04:05"
+	path := "/System/Logging?majorType=" + majorType + "&minorType=0&startTime=" + start.Format(layout) + "&stopTime=" + stop.Format(layout)
 	var x logListXML
 	if err := c.getXML(ctx, path, &x); err != nil {
 		return nil, err

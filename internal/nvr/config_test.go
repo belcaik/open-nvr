@@ -133,7 +133,8 @@ func TestConfigurationGETs(t *testing.T) {
 		t.Fatalf("Logs = %+v, %v", logs, err)
 	}
 	uri := f.last(t, "GET", "/System/Logging").uri
-	if !strings.Contains(uri, "majorType=4") || !strings.Contains(uri, "startTime=2026-10-30T00%3A00%3A00") {
+	// El NVR responde -5 si los ':' llegan como %3A (T101): query literal como la UI oficial.
+	if uri != "/System/Logging?majorType=4&minorType=0&startTime=2026-10-30T00:00:00&stopTime=2026-10-31T00:00:00" {
 		t.Fatalf("query de logs = %q", uri)
 	}
 }

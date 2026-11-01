@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Logging Version="1.0">
-    <LogList>
-        <Log><netUser>admin</netUser><hostIPAddress>192.0.2.10</hostIPAddress><minorType>304</minorType><channel>-1</channel><IpConflictMac></IpConflictMac><time>20261030124530</time></Log>
-        <Log><netUser>operador</netUser><hostIPAddress>192.0.2.11</hostIPAddress><minorType>401</minorType><channel>0</channel><IpConflictMac>00:00:00:00:00:00</IpConflictMac><time>20261030130000</time></Log>
-    </LogList>
-</Logging>
+<LogList Version="1.0">
+    <Log Version="1.0">
+        <ID>1</ID>
+        <time>20261030124530</time>
+        <majorType>4</majorType>
+        <minorType>304</minorType>
+        <netUser>admin</netUser>
+        <hostIPAddress>192.0.2.10</hostIPAddress>
+        <channel>-1</channel>
+        <IpConflictMac />
+    </Log>
+    <Log Version="1.0">
+        <ID>2</ID>
+        <time>20261030130000</time>
+        <majorType>4</majorType>
+        <minorType>401</minorType>
+        <netUser>operador</netUser>
+        <hostIPAddress>192.0.2.11</hostIPAddress>
+        <channel>0</channel>
+        <IpConflictMac>00:00:00:00:00:00</IpConflictMac>
+    </Log>
+</LogList>

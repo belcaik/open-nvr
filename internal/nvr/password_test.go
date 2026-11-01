@@ -153,6 +153,35 @@ func TestSetCameraPasswordRestoresPreviousCredential(t *testing.T) {
 	}
 }
 
+// El firmware nunca devuelve la contraseña guardada (T101): llega vacía y la
+// prueba real T97 restauró la cámara reenviando ese valor vacío.
+func TestSetCameraPasswordWithHiddenStoredCredential(t *testing.T) {
+	fastCameraPasswordTiming(t)
+	f, c := newFakeNVR(t)
+	script := &cameraScript{channel: 1, list: devConnectList(1, ""), before: "weak password",
+		afterPut: [][]string{{"login failed"}, {"login failed", "weak password"}}}
+	script.install(f)
+	err := c.SetCameraPassword(context.Background(), 1, "Nueva2026")
+	var pwErr *CameraPasswordError
+	if !errors.As(err, &pwErr) || !pwErr.Restored {
+		t.Fatalf("error = %v", err)
+	}
+	if script.puts != 2 {
+		t.Fatalf("PUT = %d, quiero cambio y restauración", script.puts)
+	}
+	if body := f.last(t, "PUT", "/System/FrontConnectDevicetList").body; strings.Contains(body, "Nueva2026") || !strings.Contains(body, "<Password></Password>") {
+		t.Fatal("la restauración no reenvió la credencial vacía")
+	}
+
+	f, c = newFakeNVR(t)
+	script = &cameraScript{channel: 1, list: devConnectList(1, ""), before: "weak password",
+		afterPut: [][]string{{"connectting", "connect success"}}}
+	script.install(f)
+	if err := c.SetCameraPassword(context.Background(), 1, "Nueva2026"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSetCameraPasswordReportsUnconfirmedRollback(t *testing.T) {
 	fastCameraPasswordTiming(t)
 	f, c := newFakeNVR(t)
@@ -192,7 +221,6 @@ func TestSetCameraPasswordPreconditionsDoNotWrite(t *testing.T) {
 		before string
 	}{
 		{"cámara desconectada", devConnectList(1, "Anterior2026"), "login failed"},
-		{"credencial actual no disponible", devConnectList(1, ""), "weak password"},
 		{"canal no registrado", devConnectList(3, "Anterior2026"), "weak password"},
 	}
 	for _, tc := range cases {
