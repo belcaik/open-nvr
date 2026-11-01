@@ -13,7 +13,13 @@ import (
 func nvrError(err error) (int, string) {
 	var bad *nvr.BadResponseError
 	var invalid *nvr.ValidationError
+	var password *nvr.CameraPasswordError
 	switch {
+	case errors.As(err, &password):
+		if password.Restored {
+			return http.StatusBadGateway, "La cámara no confirmó la nueva contraseña; se restauró la anterior"
+		}
+		return http.StatusBadGateway, "La cámara no confirmó la nueva contraseña ni la restauración: revisa la cámara en el NVR"
 	case errors.As(err, &invalid):
 		return http.StatusBadRequest, "Valor no válido en " + invalid.Field + ": " + invalid.Reason
 	case errors.Is(err, nvr.ErrUnavailable):

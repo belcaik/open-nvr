@@ -289,9 +289,12 @@ exporta CSV cuando el firmware lo permite; este NVR responde `statusCode=-5` a
 `/System/Logging`, por lo que la página mostrará ese error.
 
 **Configuración > Cámara > Contraseña de la cámara** cambia la clave individual
-dentro de la IPC y actualiza la credencial del NVR. La operación verifica que la
-cámara vuelve a conectar y restaura la anterior si falla. Esta vía quedó probada
-realmente en T97, corrigiendo la conclusión anterior basada sólo en estática.
+dentro de la IPC y actualiza la credencial del NVR. La cámara debe estar
+conectada. Sólo se confirma si el NVR muestra una transición (desconexión o
+cambio de estado); si no, se restaura la anterior y se verifica esa restauración.
+Si tampoco se confirma, la página pide revisar la cámara. Puede tardar hasta 15 s.
+Esta vía quedó probada realmente en T97; la confirmación por transición (T100)
+sólo está probada con dobles y debe verificarse en el primer cambio real.
 
 ### Pendientes del propietario para desplegar (2026-10-31)
 

@@ -31,7 +31,10 @@ type fakeNVR struct {
 	reqs   []request
 	routes map[string]string // "GET /x" -> archivo de fixture
 	raw    map[string][]byte // "GET /x" -> cuerpo literal (imágenes, etc.)
-	srv    *httptest.Server
+	// hook, si existe, responde antes que raw y routes; se llama con el
+	// mutex tomado para simular estados que cambian tras un PUT.
+	hook func(key string) ([]byte, bool)
+	srv  *httptest.Server
 }
 
 const fixtureDir = "../../testdata/nvr"
@@ -83,6 +86,11 @@ func (f *fakeNVR) handle(w http.ResponseWriter, r *http.Request) {
 	key := r.Method + " " + r.URL.Path
 	file, okFile := f.routes[key]
 	body, okRaw := f.raw[key]
+	if f.hook != nil {
+		if hooked, ok := f.hook(key); ok {
+			body, okRaw = hooked, true
+		}
+	}
 	f.mu.Unlock()
 	if okRaw {
 		w.Write(body)

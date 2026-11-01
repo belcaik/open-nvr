@@ -10,10 +10,31 @@ import (
 	"time"
 )
 
-const (
-	cameraPasswordTimeout = 8 * time.Second
+// Variables y no constantes para que los tests acorten la espera.
+var (
+	cameraPasswordTimeout = 15 * time.Second
 	cameraPasswordPoll    = 200 * time.Millisecond
 )
+
+// CameraPasswordError indica que la IPC no confirmó la clave nueva y si la
+// credencial anterior quedó confirmada. Nunca incluye contraseñas.
+type CameraPasswordError struct {
+	Restored bool
+	Err      error
+}
+
+func (e *CameraPasswordError) Error() string {
+	if e.Restored {
+		return "nvr: la cámara no confirmó la nueva contraseña; se restauró la credencial anterior: " + e.Err.Error()
+	}
+	return "nvr: la cámara no confirmó la nueva contraseña ni la restauración de la anterior: " + e.Err.Error()
+}
+
+func (e *CameraPasswordError) Unwrap() error { return e.Err }
+
+func cameraOnline(status string) bool {
+	return status == "connect success" || status == "weak password"
+}
 
 type xmlNode struct {
 	XMLName  xml.Name
@@ -74,6 +95,9 @@ func cameraPasswordBodies(doc []byte, channel int, password string) (updated, ro
 		return nil, nil, &ValidationError{Field: "ChannelID", Reason: "la cámara no está registrada"}
 	}
 	previous := selected.child("Password").Text
+	if previous == "" {
+		return nil, nil, &ValidationError{Field: "Password", Reason: "el NVR no devolvió la credencial actual; no se podría restaurar"}
+	}
 	if previous == password {
 		return nil, nil, &ValidationError{Field: "Password", Reason: "debe ser distinta de la actual"}
 	}
@@ -123,41 +147,67 @@ func (c *Client) SetCameraPassword(ctx context.Context, channel int, password st
 	if err != nil {
 		return err
 	}
-	if _, err = c.do(ctx, http.MethodPut, path, string(updated), controlTimeout); err != nil {
-		return c.rollbackCameraPassword(ctx, path, rollback, err)
+	// Sin la cámara conectada no hay forma de confirmar el cambio.
+	before, err := c.cameraLoginStatus(ctx, channel)
+	if err != nil {
+		return err
 	}
-	if err = c.waitCameraPassword(ctx, channel); err != nil {
-		return c.rollbackCameraPassword(ctx, path, rollback, err)
+	if !cameraOnline(before) {
+		return &ValidationError{Field: "ChannelID", Reason: "la cámara debe estar conectada para cambiar su contraseña"}
+	}
+	if _, err = c.do(ctx, http.MethodPut, path, string(updated), controlTimeout); err != nil {
+		// Un rechazo explícito o una cancelación previa al envío no cambiaron
+		// nada; sólo un fallo de red deja el resultado en duda.
+		if !errors.Is(err, ErrUnavailable) {
+			return err
+		}
+		return c.rollbackCameraPassword(ctx, channel, path, rollback, before, err)
+	}
+	// El LoginStatus previo puede seguir publicado justo después del PUT:
+	// sólo una transición demuestra que la IPC reconectó con la clave nueva.
+	changed := func(status string, sawOffline bool) bool { return sawOffline || status != before }
+	if err = c.waitCameraPassword(ctx, channel, changed); err != nil {
+		return c.rollbackCameraPassword(ctx, channel, path, rollback, before, err)
 	}
 	return nil
 }
 
-func (c *Client) rollbackCameraPassword(ctx context.Context, path string, rollback []byte, cause error) error {
-	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cameraPasswordTimeout)
+func (c *Client) rollbackCameraPassword(ctx context.Context, channel int, path string, rollback []byte, before string, cause error) error {
+	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*cameraPasswordTimeout)
 	defer cancel()
-	_, rollbackErr := c.do(rollbackCtx, http.MethodPut, path, string(rollback), controlTimeout)
-	if rollbackErr != nil {
-		return errors.Join(cause, fmt.Errorf("restaurar credencial anterior: %w", rollbackErr))
+	if _, err := c.do(rollbackCtx, http.MethodPut, path, string(rollback), controlTimeout); err != nil {
+		return &CameraPasswordError{Err: errors.Join(cause, fmt.Errorf("restaurar credencial anterior: %w", err))}
 	}
-	return errors.Join(cause, errors.New("la cámara no confirmó la nueva contraseña; se restauró la credencial anterior"))
+	restored := func(status string, sawOffline bool) bool { return sawOffline || status == before }
+	if err := c.waitCameraPassword(rollbackCtx, channel, restored); err != nil {
+		return &CameraPasswordError{Err: errors.Join(cause, fmt.Errorf("reconexión tras restaurar: %w", err))}
+	}
+	return &CameraPasswordError{Restored: true, Err: cause}
 }
 
-func (c *Client) waitCameraPassword(ctx context.Context, channel int) error {
+// waitCameraPassword espera un estado conectado que accept considere
+// posterior al PUT. sawOffline indica si ya se vio la IPC desconectada.
+func (c *Client) waitCameraPassword(ctx context.Context, channel int, accept func(status string, sawOffline bool) bool) error {
 	waitCtx, cancel := context.WithTimeout(ctx, cameraPasswordTimeout)
 	defer cancel()
 	ticker := time.NewTicker(cameraPasswordPoll)
 	defer ticker.Stop()
+	sawOffline := false
 	for {
 		status, err := c.cameraLoginStatus(waitCtx, channel)
-		if err == nil && (status == "connect success" || status == "weak password") {
-			return nil
+		if err == nil {
+			if !cameraOnline(status) {
+				sawOffline = true
+			} else if accept(status, sawOffline) {
+				return nil
+			}
 		}
 		select {
 		case <-waitCtx.Done():
 			if err != nil {
 				return err
 			}
-			return fmt.Errorf("nvr: estado IPC tras cambiar contraseña: %s", status)
+			return fmt.Errorf("nvr: estado IPC sin confirmar: %s", status)
 		case <-ticker.C:
 		}
 	}
