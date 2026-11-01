@@ -15,6 +15,7 @@ func (s *server) registerSettingsRoutes(mux *http.ServeMux, authed func(http.Han
 	}))
 	mux.Handle("GET /settings/camera/{ch}", authed(s.settingsCamera))
 	mux.Handle("PUT /api/settings/{ch}/osd", authed(s.putOSD))
+	mux.Handle("PUT /api/settings/{ch}/credential", authed(s.putCameraCredential))
 	mux.Handle("PUT /api/settings/{ch}/white-balance", authed(s.putWhiteBalance))
 	mux.Handle("PUT /api/settings/{ch}/exposure", authed(s.putExposure))
 	mux.Handle("PUT /api/settings/{ch}/scene", authed(s.putScene))
@@ -124,6 +125,23 @@ func (s *server) putOSD(w http.ResponseWriter, r *http.Request) {
 	}
 	v := nvr.OSD{NameEnabled: r.PostFormValue("name_enabled") == "on", Name: r.PostFormValue("name"), TimeEnabled: r.PostFormValue("time_enabled") == "on"}
 	s.result(w, r, s.d.Config.SetOSD(r.Context(), ch, v), "OSD guardado")
+}
+
+// putCameraCredential guarda en el NVR la clave que ya se cambió en la propia
+// cámara; el NVR no puede cambiarla dentro de la cámara (T104).
+func (s *server) putCameraCredential(w http.ResponseWriter, r *http.Request) {
+	ch, ok := s.channel(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	password := r.PostFormValue("password")
+	if password != r.PostFormValue("confirmation") {
+		s.badForm(w, r, "Las contraseñas no coinciden")
+		return
+	}
+	err := s.d.Config.SetCameraCredential(r.Context(), ch, r.PostFormValue("username"), password)
+	s.result(w, r, err, "Credencial guardada y cámara conectada")
 }
 
 func (s *server) putWhiteBalance(w http.ResponseWriter, r *http.Request) {

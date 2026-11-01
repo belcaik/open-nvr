@@ -13,10 +13,10 @@ import (
 func nvrError(err error) (int, string) {
 	var bad *nvr.BadResponseError
 	var invalid *nvr.ValidationError
-	var ignored *nvr.NotAppliedError
+	var credential *nvr.CameraCredentialError
 	switch {
-	case errors.As(err, &ignored):
-		return http.StatusBadGateway, "El NVR aceptó la petición pero no aplicó el cambio (limitación de su firmware)"
+	case errors.As(err, &credential):
+		return http.StatusBadGateway, "El NVR guardó la credencial pero la cámara no conectó (estado: " + credential.Status + "). Comprueba usuario y contraseña; si la cámara sigue con la clave de fábrica, usa Eliminar canal en la interfaz del NVR y deja que la vuelva a añadir"
 	case errors.As(err, &invalid):
 		return http.StatusBadRequest, "Valor no válido en " + invalid.Field + ": " + invalid.Reason
 	case errors.Is(err, nvr.ErrUnavailable):

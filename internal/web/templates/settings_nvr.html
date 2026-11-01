@@ -29,6 +29,7 @@
 
   <form class="panel" hx-put="/api/settings/nvr/audio" hx-target="find output" hx-swap="innerHTML">
     <h2>Audio global</h2>
+    <p class="muted">El NVR aplica el cambio pero no devuelve el volumen ni la entrada guardados: esta página muestra siempre sus valores de fábrica.</p>
     {{with $p.Audio.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.Audio.V}}
     <label>Entrada <select name="input_method">{{$v := .InputMethod}}{{range $o := audioInputMethods}}<option value="{{$o}}" {{if eq $o $v}}selected{{end}}>{{choiceLabel $o}}</option>{{end}}</select></label>
     <p>Códec: {{.Codec}}. Se conserva porque el intercom usado por esta interfaz emplea G.711 μ-law.</p>

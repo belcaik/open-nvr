@@ -16,6 +16,15 @@
     {{end}}{{end}}
   </form>
 
+  <form class="panel" hx-put="/api/settings/{{$ch}}/credential" hx-target="find output" hx-swap="innerHTML" autocomplete="off" data-reset-on-success>
+    <h2>Credencial de la cámara en el NVR</h2>
+    <p class="muted">Úsalo sólo después de cambiar la clave en la propia cámara (conectada por cable a tu PC): el NVR no puede cambiarla dentro de la cámara. Aquí sólo se guarda el usuario y la clave con los que el NVR inicia sesión. Si no coinciden con los de la cámara, quedará en «login failed». Espera hasta 20 s la reconexión.</p>
+    <label>Usuario <input type="text" name="username" value="admin" maxlength="32" autocomplete="off" required></label>
+    <label>Contraseña de la cámara <input type="password" name="password" maxlength="32" autocomplete="off" required></label>
+    <label>Repetir contraseña <input type="password" name="confirmation" maxlength="32" autocomplete="off" required></label>
+    <div class="row"><button type="submit">Guardar credencial</button><output></output></div>
+  </form>
+
   <form class="panel" hx-put="/api/settings/{{$ch}}/white-balance" hx-target="find output" hx-swap="innerHTML">
     <h2>Balance de blancos</h2>
     {{with $p.WhiteBalance.Err}}<p class="error">{{.}}</p>{{else}}{{with $p.WhiteBalance.V}}
@@ -117,3 +126,4 @@
   </div>
 </section>
 {{end}}
+{{define "scripts"}}<script type="module" src="{{asset "/static/js/forms.js"}}"></script>{{end}}

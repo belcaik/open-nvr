@@ -179,19 +179,9 @@ func (c *Client) SetAudioStream(ctx context.Context, v AudioStream) error {
 		}
 		changes["AudioOutVolume"] = strconv.Itoa(v.OutputVolume)
 	}
-	if err := c.patchAndPut(ctx, "/Streams/AudioStream", changes); err != nil {
-		return err
-	}
-	// El firmware responde statusCode 0 aunque ignore el cambio (T103).
-	got, err := c.AudioStream(ctx)
-	if err != nil {
-		return err
-	}
-	if got.InputMethod != v.InputMethod || got.Codec != v.Codec || got.InputVolume != v.InputVolume ||
-		(v.HasOutputVolume && got.OutputVolume != v.OutputVolume) {
-		return &NotAppliedError{Path: "/Streams/AudioStream"}
-	}
-	return nil
+	// El cambio se aplica aunque el GET siga devolviendo los valores de
+	// fábrica (T105): no se puede verificar releyendo.
+	return c.patchAndPut(ctx, "/Streams/AudioStream", changes)
 }
 
 var LogMajorTypes = []string{"1", "2", "3", "4", "6", "7", "8", "9"}

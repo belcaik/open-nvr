@@ -253,15 +253,17 @@ func TestAudioStreamWithoutOutputVolume(t *testing.T) {
 	}
 }
 
-// Este firmware responde statusCode 0 a PUT /Streams/AudioStream pero no
-// guarda el cambio (T103): hay que releer y no anunciar "guardado".
-func TestSetAudioStreamReportsIgnoredChange(t *testing.T) {
+// El firmware relee siempre los valores de fábrica aunque el cambio sí se
+// aplica: el micrófono empezó a oírse tras guardar (T105). No hay que tratar
+// esa relectura como fallo.
+func TestSetAudioStreamDoesNotTrustReadback(t *testing.T) {
 	f, c := newFakeNVR(t)
 	f.raw["GET /Streams/AudioStream"] = []byte(`<AudioStream><AudioInMethod>microphone</AudioInMethod><AudioInCodec>G.711U</AudioInCodec><AudioInVolume>0</AudioInVolume></AudioStream>`)
-	err := c.SetAudioStream(context.Background(), AudioStream{InputMethod: "line-in", Codec: "G.711U", InputVolume: 40})
-	var ignored *NotAppliedError
-	if !errors.As(err, &ignored) || ignored.Path != "/Streams/AudioStream" {
-		t.Fatalf("error = %v, quiero NotAppliedError", err)
+	if err := c.SetAudioStream(context.Background(), AudioStream{InputMethod: "line-in", Codec: "G.711U", InputVolume: 40}); err != nil {
+		t.Fatal(err)
+	}
+	if body := f.last(t, "PUT", "/Streams/AudioStream").body; !strings.Contains(body, "<AudioInVolume>40</AudioInVolume>") || !strings.Contains(body, "<AudioInMethod>line-in</AudioInMethod>") {
+		t.Fatalf("PUT = %s", body)
 	}
 }
 

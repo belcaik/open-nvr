@@ -12,6 +12,7 @@ import (
 type ConfigService interface {
 	OSD(ctx context.Context, ch int) (nvr.OSD, error)
 	SetOSD(ctx context.Context, ch int, v nvr.OSD) error
+	SetCameraCredential(ctx context.Context, ch int, username, password string) error
 	WhiteBalance(ctx context.Context, ch int) (nvr.WhiteBalance, error)
 	SetWhiteBalance(ctx context.Context, ch int, v nvr.WhiteBalance) error
 	Exposure(ctx context.Context, ch int) (nvr.Exposure, error)

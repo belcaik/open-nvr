@@ -19,9 +19,10 @@ import (
 )
 
 type fakeConfig struct {
-	calls    []string
-	schedule nvr.RecordSchedule
-	err      error
+	calls      []string
+	schedule   nvr.RecordSchedule
+	err        error
+	credential string
 }
 
 func (f *fakeConfig) rec(format string, a ...any) error {
@@ -30,6 +31,10 @@ func (f *fakeConfig) rec(format string, a ...any) error {
 }
 func (f *fakeConfig) OSD(context.Context, int) (nvr.OSD, error) {
 	return nvr.OSD{NameEnabled: true, Name: "Patio", TimeEnabled: true}, f.err
+}
+func (f *fakeConfig) SetCameraCredential(_ context.Context, ch int, user, password string) error {
+	f.credential = user + ":" + password
+	return f.rec("camera credential %d %s", ch, user)
 }
 func (f *fakeConfig) SetOSD(_ context.Context, ch int, v nvr.OSD) error {
 	return f.rec("osd %d %+v", ch, v)
@@ -206,8 +211,13 @@ func TestSettingsCameraPage(t *testing.T) {
 			t.Fatalf("falta %q", want)
 		}
 	}
-	if strings.Contains(body, "/password") || strings.Contains(body, `type="password"`) {
-		t.Fatal("la página aún ofrece cambiar la contraseña de la cámara")
+	for _, want := range []string{`hx-put="/api/settings/2/credential"`, `name="username"`, `autocomplete="off"`, "cable", `data-reset-on-success`, "forms.js"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("falta %q en el formulario de credencial", want)
+		}
+	}
+	if strings.Contains(body, "/password") {
+		t.Fatal("la página aún ofrece cambiar la contraseña dentro de la cámara")
 	}
 }
 
@@ -309,6 +319,7 @@ func TestPutOSDImageAudioAndP2P(t *testing.T) {
 // FrontConnectDevicetList modify sólo cambia la credencial guardada en el NVR,
 // no la de la cámara, y no admite volver a la clave vacía (T104): la función
 // dejó la cámara en "login failed" y se retiró.
+
 func TestCameraPasswordRouteRemoved(t *testing.T) {
 	e, cfg, _ := newFullEnv(t)
 	rec := e.do(e.authed(t, "PUT", "/api/settings/2/password", url.Values{"password": {"Clave2026segura"}, "confirmation": {"Clave2026segura"}}))
@@ -317,12 +328,39 @@ func TestCameraPasswordRouteRemoved(t *testing.T) {
 	}
 }
 
-func TestPutAudioReportsChangeIgnoredByNVR(t *testing.T) {
+func TestPutCameraCredential(t *testing.T) {
 	e, cfg, _ := newFullEnv(t)
-	cfg.err = &nvr.NotAppliedError{Path: "/Streams/AudioStream"}
-	rec := e.do(e.authed(t, "PUT", "/api/settings/nvr/audio", url.Values{"input_method": {"line-in"}, "codec": {"G.711U"}, "input_volume": {"40"}}))
-	if rec.Code != 502 || !strings.Contains(rec.Body.String(), "no aplicó el cambio") || strings.Contains(rec.Body.String(), "Audio guardado") {
+	rec := e.do(e.authed(t, "PUT", "/api/settings/2/credential", url.Values{"username": {"admin"}, "password": {"Clave&2026"}, "confirmation": {"Clave&2026"}}))
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "conectada") || strings.Contains(rec.Body.String(), "Clave&") {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if cfg.credential != "admin:Clave&2026" || cfg.calls[0] != "camera credential 2 admin" {
+		t.Fatalf("credential=%q calls=%v", cfg.credential, cfg.calls)
+	}
+}
+
+func TestPutCameraCredentialMismatchDoesNotWrite(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	rec := e.do(e.authed(t, "PUT", "/api/settings/2/credential", url.Values{"username": {"admin"}, "password": {"Clave2026"}, "confirmation": {"Otra2026"}}))
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "no coinciden") || len(cfg.calls) != 0 {
+		t.Fatalf("%d %s %v", rec.Code, rec.Body, cfg.calls)
+	}
+}
+
+func TestPutCameraCredentialReportsLoginFailure(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	cfg.err = &nvr.CameraCredentialError{Status: "login failed"}
+	rec := e.do(e.authed(t, "PUT", "/api/settings/2/credential", url.Values{"username": {"admin"}, "password": {"Clave2026"}, "confirmation": {"Clave2026"}}))
+	if rec.Code != 502 || !strings.Contains(rec.Body.String(), "login failed") || !strings.Contains(rec.Body.String(), "Eliminar") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestAudioFormWarnsReadbackIsUnreliable(t *testing.T) {
+	e, _, _ := newFullEnv(t)
+	body := e.do(e.authed(t, "GET", "/settings/nvr", nil)).Body.String()
+	if !strings.Contains(body, "no devuelve el volumen") {
+		t.Fatal("falta el aviso de que el NVR no devuelve el valor aplicado")
 	}
 }
 
