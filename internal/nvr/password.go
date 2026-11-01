@@ -94,10 +94,9 @@ func cameraPasswordBodies(doc []byte, channel int, password string) (updated, ro
 	if selected == nil || selected.child("Password") == nil {
 		return nil, nil, &ValidationError{Field: "ChannelID", Reason: "la cámara no está registrada"}
 	}
+	// El firmware oculta la contraseña guardada y devuelve <Password/>; T97
+	// restauró la cámara reenviando ese valor vacío, así que sirve de rollback.
 	previous := selected.child("Password").Text
-	if previous == "" {
-		return nil, nil, &ValidationError{Field: "Password", Reason: "el NVR no devolvió la credencial actual; no se podría restaurar"}
-	}
 	if previous == password {
 		return nil, nil, &ValidationError{Field: "Password", Reason: "debe ser distinta de la actual"}
 	}

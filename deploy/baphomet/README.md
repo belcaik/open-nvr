@@ -285,8 +285,8 @@ sesión» tras unos 3 s.
 
 En **Configuración** hay OSD, balance de blancos, exposición, escena, horario
 personalizado de 7×48 bloques, audio global y P2P. **Registros** consulta y
-exporta CSV cuando el firmware lo permite; este NVR responde `statusCode=-5` a
-`/System/Logging`, por lo que la página mostrará ese error.
+exporta CSV. El `statusCode=-5` anterior se debía a que open-nvr codificaba `:`
+como `%3A`, que este NVR no acepta (corregido en T101).
 
 **Configuración > Cámara > Contraseña de la cámara** cambia la clave individual
 dentro de la IPC y actualiza la credencial del NVR. La cámara debe estar
@@ -315,8 +315,7 @@ sólo está probada con dobles y debe verificarse en el primer cambio real.
 5. Para cerrar la contraseña débil, usar **Configuración > Cámara > Contraseña
    de la cámara**, una cámara cada vez y una clave distinta y robusta. Esperar la
    confirmación de conexión y comprobar vídeo antes de pasar a la siguiente.
-6. Los registros quedan pendientes del firmware/fabricante (`-5`), no de un paso
-   de despliegue. No hace falta reintentarlos durante la puesta en marcha.
+6. Registros: desde T101 deben listar eventos; si vuelve `-5`, avisar.
 
 Vuelta atrás: `sudo podman-compose stop web go2rtc` y restaurar la imagen
 anterior de Caddy.
