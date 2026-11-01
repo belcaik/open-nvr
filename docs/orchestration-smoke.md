@@ -220,3 +220,18 @@ Corrección posterior (T97): la conclusión estática sobre contraseñas quedó
 refutada por una prueba reversible en el equipo. `FrontConnectDevicetList` con
 `ActionState=modify` sí cambió la clave dentro de la IPC y la restauró después.
 La evidencia runtime tiene prioridad sobre la inferencia estática anterior.
+
+## Micrófono y revisión de contraseña IPC (2026-11-01)
+
+`discover`: Claude 2.1.304, Codex 0.163.0, Kimi 2.4.1 y Grok 1.0.70.
+
+| Run | Agente | Objetivo | Estado | Duración |
+|---|---|---|---|---|
+| review-ipc-password-2 | codex | Revisión estática de `SetCameraPassword`, handler y formulario | passed | 114,3 s |
+
+Codex trabajó en el worktree `orch/review-ipc-password`, sin credenciales ni
+acceso al NVR; su sandbox impidió sockets loopback, por lo que sólo pasó parte
+de las pruebas. Sus cuatro hallazgos (confirmación con estado previo, rollback
+no verificado, compensación innecesaria y contraseña retenida en el DOM) se
+integraron a mano con pruebas en el proceso principal (T100). El diagnóstico del
+micrófono (T99) se hizo directamente contra el NVR desde el proceso principal.

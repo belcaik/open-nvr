@@ -16,9 +16,9 @@
     {{end}}{{end}}
   </form>
 
-  <form class="panel" hx-put="/api/settings/{{$ch}}/password" hx-target="find output" hx-swap="innerHTML">
+  <form class="panel" hx-put="/api/settings/{{$ch}}/password" hx-target="find output" hx-swap="innerHTML" data-reset-on-success>
     <h2>Contraseña de la cámara</h2>
-    <p class="muted">Cambia la clave dentro de esta cámara y actualiza la conexión del NVR. Si la cámara no vuelve a conectar, se restaura la credencial anterior.</p>
+    <p class="muted">Cambia la clave dentro de esta cámara y actualiza la conexión del NVR. La cámara debe estar conectada; si no confirma la reconexión con la clave nueva, se restaura la anterior. Puede tardar hasta 15 segundos.</p>
     <label>Nueva contraseña <input type="password" name="password" minlength="8" maxlength="16" autocomplete="new-password" required></label>
     <label>Repetir contraseña <input type="password" name="confirmation" minlength="8" maxlength="16" autocomplete="new-password" required></label>
     <p class="muted">Entre 8 y 16 caracteres ASCII visibles, con al menos una letra y un número.</p>
@@ -126,3 +126,4 @@
   </div>
 </section>
 {{end}}
+{{define "scripts"}}<script type="module" src="{{asset "/static/js/forms.js"}}"></script>{{end}}

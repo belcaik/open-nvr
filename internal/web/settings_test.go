@@ -19,9 +19,10 @@ import (
 )
 
 type fakeConfig struct {
-	calls    []string
-	schedule nvr.RecordSchedule
-	err      error
+	calls          []string
+	schedule       nvr.RecordSchedule
+	err            error
+	cameraPassword string
 }
 
 func (f *fakeConfig) rec(format string, a ...any) error {
@@ -34,7 +35,8 @@ func (f *fakeConfig) OSD(context.Context, int) (nvr.OSD, error) {
 func (f *fakeConfig) SetOSD(_ context.Context, ch int, v nvr.OSD) error {
 	return f.rec("osd %d %+v", ch, v)
 }
-func (f *fakeConfig) SetCameraPassword(_ context.Context, ch int, _ string) error {
+func (f *fakeConfig) SetCameraPassword(_ context.Context, ch int, password string) error {
+	f.cameraPassword = password
 	return f.rec("camera password %d", ch)
 }
 func (f *fakeConfig) WhiteBalance(context.Context, int) (nvr.WhiteBalance, error) {
@@ -203,7 +205,8 @@ func TestSettingsCameraPage(t *testing.T) {
 	body := e.do(e.authed(t, "GET", "/settings/camera/2", nil)).Body.String()
 	for _, want := range []string{`hx-put="/api/settings/2/osd"`, `value="Patio"`, `hx-put="/api/settings/2/white-balance"`,
 		`hx-put="/api/settings/2/exposure"`, `hx-put="/api/settings/2/scene"`, `hx-put="/api/settings/2/color"`, `value="53"`, "leftright", "variablewhitelight",
-		"continuo (24 h, todos los días)", `name="slot_6_47"`, "H.265 2304×1296"} {
+		"continuo (24 h, todos los días)", `name="slot_6_47"`, "H.265 2304×1296",
+		`hx-put="/api/settings/2/password"`, `data-reset-on-success`, `autocomplete="new-password"`, "forms.js"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("falta %q", want)
 		}
@@ -313,6 +316,31 @@ func TestPutCameraPassword(t *testing.T) {
 	}
 	if len(cfg.calls) != 1 || cfg.calls[0] != "camera password 2" {
 		t.Fatalf("calls = %v", cfg.calls)
+	}
+	if cfg.cameraPassword != "Clave2026segura" {
+		t.Fatal("el handler no reenvió la contraseña exacta")
+	}
+	if strings.Contains(rec.Body.String(), "Clave2026segura") {
+		t.Fatal("la respuesta contiene la contraseña")
+	}
+}
+
+func TestPutCameraPasswordReportsRollbackOutcome(t *testing.T) {
+	cases := []struct {
+		err  error
+		want string
+	}{
+		{&nvr.CameraPasswordError{Restored: true, Err: nvr.ErrUnavailable}, "se restauró la anterior"},
+		{&nvr.CameraPasswordError{Restored: false, Err: nvr.ErrUnavailable}, "revisa la cámara"},
+		{&nvr.ValidationError{Field: "Password", Reason: "debe tener entre 8 y 16 caracteres"}, "entre 8 y 16"},
+	}
+	for _, tc := range cases {
+		e, cfg, _ := newFullEnv(t)
+		cfg.err = tc.err
+		rec := e.do(e.authed(t, "PUT", "/api/settings/2/password", url.Values{"password": {"Clave2026segura"}, "confirmation": {"Clave2026segura"}}))
+		if rec.Code < 400 || !strings.Contains(rec.Body.String(), tc.want) || strings.Contains(rec.Body.String(), "Clave2026segura") {
+			t.Fatalf("%v: %d %s", tc.err, rec.Code, rec.Body)
+		}
 	}
 }
 
