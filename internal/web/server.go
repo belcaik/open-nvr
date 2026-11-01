@@ -46,6 +46,9 @@ type Deps struct {
 	Events         EventHub         // nil: sin /api/events
 	Talk           talk.Opener      // nil: sin micrófono P6S
 	Location       *time.Location   // zona horaria del NVR
+	// AudioState guarda el último audio global aplicado: el NVR relee siempre
+	// sus valores de fábrica (T105). "" no recuerda nada.
+	AudioState string
 	// FailDelay retrasa la respuesta a un login fallido (500 ms en producción).
 	FailDelay time.Duration
 }

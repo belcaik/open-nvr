@@ -8,6 +8,9 @@
   </div>
 
   <aside class="panel">
+    <h2>Audio</h2>
+    <label class="row">Amplificar <input id="audio-boost" type="range" min="1" max="8" step="0.5" value="1"> <output id="audio-boost-value">×1</output></label>
+
     <h2>Movimiento</h2>
     <div class="pad">
       <button data-ch="{{$ch}}" data-ptz="TurnUpLeft" aria-label="Arriba izquierda">↖</button>
@@ -61,4 +64,5 @@
 {{end}}
 {{define "scripts"}}<script type="module" src="{{asset "/static/js/video.js"}}"></script>
 <script type="module" src="{{asset "/static/js/ptz.js"}}"></script>
+<script type="module" src="{{asset "/static/js/boost.js"}}"></script>
 {{if .Data.Talk}}<script type="module" src="{{asset "/static/js/talk.js"}}"></script>{{end}}{{end}}

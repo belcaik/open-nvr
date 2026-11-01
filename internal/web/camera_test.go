@@ -67,7 +67,8 @@ func TestCameraPage(t *testing.T) {
 	if rec.Code != 200 || !strings.Contains(body, `data-quality="main"`) ||
 		!strings.Contains(body, `data-ptz="TurnUpLeft"`) || !strings.Contains(body, "weak password") ||
 		!strings.Contains(body, `id="talk-button"`) || !strings.Contains(body, `data-channel="1"`) ||
-		!strings.Contains(body, `/static/js/talk.js`) || !strings.Contains(body, `id="talk-status"`) {
+		!strings.Contains(body, `/static/js/talk.js`) || !strings.Contains(body, `id="talk-status"`) ||
+		!strings.Contains(body, `id="audio-boost"`) || !strings.Contains(body, `/static/js/boost.js`) {
 		t.Fatalf("%d %s", rec.Code, body)
 	}
 }

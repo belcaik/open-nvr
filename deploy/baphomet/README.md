@@ -286,7 +286,9 @@ sesión» tras unos 3 s.
 En **Configuración** hay OSD, balance de blancos, exposición, escena, horario
 personalizado de 7×48 bloques, audio global y P2P. El firmware acepta pero ignora
 el volumen y la entrada del audio global: el cambio se aplica (el micrófono se
-oye), pero el NVR siempre relee los valores de fábrica; la página lo indica (T105). **Registros** consulta y
+oye), pero el NVR siempre relee los valores de fábrica. open-nvr recuerda lo último
+guardado en `/config/opennvr-audio.json` (`AUDIO_STATE_FILE`) y lo muestra (T106).
+En **Directo > Cámara**, **Amplificar** sube el audio hasta ×8 en el navegador. **Registros** consulta y
 exporta CSV. El `statusCode=-5` anterior se debía a que open-nvr codificaba `:`
 como `%3A`, que este NVR no acepta (corregido en T101).
 
