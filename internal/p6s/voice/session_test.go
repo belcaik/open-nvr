@@ -326,8 +326,10 @@ func TestSendWritesExactPCMUFramesWithPacing(t *testing.T) {
 	}()
 
 	var slept []time.Duration
+	now := time.Unix(0, 0)
 	session, err := Open(context.Background(), command, media, Config{
 		Extension: mustExtension(t),
+		Now:       func() time.Time { return now },
 		Sleep: func(_ context.Context, d time.Duration) error {
 			slept = append(slept, d)
 			return nil
@@ -786,4 +788,76 @@ func serveCreateLinkStart(command, media net.Conn, flag uint32) error {
 		return err
 	}
 	return p6s.WriteCommand(command, p6s.Command{Sequence: start.Sequence, XML: startReply.Payload})
+}
+
+func TestSendPacesAgainstScheduleWithoutDrift(t *testing.T) {
+	command, commandPeer := net.Pipe()
+	media, mediaPeer := net.Pipe()
+	defer commandPeer.Close()
+	defer mediaPeer.Close()
+	serverErr := make(chan error, 1)
+	go func() { serverErr <- serveCreateLinkStart(commandPeer, mediaPeer, capturedMediaFlag) }()
+
+	now := time.Unix(100, 0)
+	var slept []time.Duration
+	session, err := Open(context.Background(), command, media, Config{
+		Extension: mustExtension(t),
+		Now:       func() time.Time { return now },
+		Sleep: func(_ context.Context, d time.Duration) error {
+			slept = append(slept, d)
+			now = now.Add(d)
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.closeConns()
+	if err := <-serverErr; err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		for {
+			if _, err := p6s.ReadMediaFrame(mediaPeer); err != nil {
+				return
+			}
+		}
+	}()
+
+	silence := bytes.Repeat([]byte{0xFF}, PCMUFrameBytes)
+	// Cada escritura tarda 5 ms: el ritmo debe descontarlo para no derivar.
+	// Tras la cuarta pasan 200 ms: la quinta sale sin pausa y la sexta
+	// retoma el ritmo, sin ráfagas ni retraso acumulado.
+	advance := []time.Duration{5, 5, 5, 200, 5, 5}
+	for _, d := range advance {
+		if err := session.Send(context.Background(), silence); err != nil {
+			t.Fatal(err)
+		}
+		now = now.Add(d * time.Millisecond)
+	}
+	want := []time.Duration{35 * time.Millisecond, 35 * time.Millisecond, 35 * time.Millisecond, 35 * time.Millisecond}
+	if fmt.Sprint(slept) != fmt.Sprint(want) {
+		t.Fatalf("pausas = %v, quiero %v", slept, want)
+	}
+}
+
+func TestOpenRejectsBusyChannel(t *testing.T) {
+	command, commandPeer := net.Pipe()
+	media, mediaPeer := net.Pipe()
+	defer commandPeer.Close()
+	defer mediaPeer.Close()
+	go func() {
+		got, err := p6s.ReadCommand(commandPeer)
+		if err != nil {
+			return
+		}
+		busy := newCommand(VoiceStreamCreateReplyID, `<VoiceStreamCreateReply MediaFlag="-1" CmdReply="1" />`)
+		_ = p6s.WriteCommand(commandPeer, p6s.Command{Sequence: got.Sequence, XML: busy.Payload})
+	}()
+	_, err := Open(context.Background(), command, media, Config{Extension: mustExtension(t)})
+	if !errors.Is(err, ErrCmdReply) {
+		t.Fatalf("error = %v, quiero ErrCmdReply", err)
+	}
+	assertClosed(t, commandPeer)
+	assertClosed(t, mediaPeer)
 }

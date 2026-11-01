@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/p6s/voice"
+	"github.com/belcaik/open-nvr/internal/talk"
 	"github.com/coder/websocket"
 )
 
@@ -35,6 +36,19 @@ func dialTalk(t *testing.T, e *env, channel int) (*websocket.Conn, *httptest.Ser
 	return conn, server
 }
 
+// readReady exige que el servidor confirme la sesión de voz antes de que el
+// cliente muestre "Hablando".
+func readReady(ctx context.Context, t *testing.T, conn *websocket.Conn) {
+	t.Helper()
+	typ, msg, err := conn.Read(ctx)
+	if err != nil {
+		t.Fatalf("sin confirmación de voz: %v", err)
+	}
+	if typ != websocket.MessageText || string(msg) != talkReady {
+		t.Fatalf("confirmación = %v %q", typ, msg)
+	}
+}
+
 func TestTalkWebSocketAcceptsOnePCMFrameAndClosesSession(t *testing.T) {
 	e := newEnv(t)
 	conn, server := dialTalk(t, e, 2)
@@ -42,6 +56,7 @@ func TestTalkWebSocketAcceptsOnePCMFrameAndClosesSession(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+	readReady(ctx, t, conn)
 	pcm := make([]byte, voice.PCM16FrameBytes)
 	pcm[0], pcm[1] = 0x34, 0x12
 	if err := conn.Write(ctx, websocket.MessageBinary, pcm); err != nil {
@@ -88,6 +103,24 @@ func TestTalkWebSocketReportsCameraRejectingVoice(t *testing.T) {
 	}
 }
 
+func TestTalkWebSocketReportsBusyChannel(t *testing.T) {
+	for _, cause := range []error{talk.ErrBusy, voice.ErrCmdReply} {
+		e := newEnv(t)
+		e.talk.err = cause
+		conn, server := dialTalk(t, e, 1)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_, _, err := conn.Read(ctx)
+		cancel()
+		server.Close()
+		if got := websocket.CloseStatus(err); got != websocket.StatusTryAgainLater {
+			t.Fatalf("%v: cierre = %d (%v)", cause, got, err)
+		}
+		if !strings.Contains(err.Error(), "en uso") {
+			t.Fatalf("%v: cierre sin motivo de ocupado: %v", cause, err)
+		}
+	}
+}
+
 func TestTalkWebSocketRejectsInvalidAudio(t *testing.T) {
 	tests := []struct {
 		name string
@@ -105,6 +138,7 @@ func TestTalkWebSocketRejectsInvalidAudio(t *testing.T) {
 			defer server.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
+			readReady(ctx, t, conn)
 			if err := conn.Write(ctx, tc.typ, tc.data); err != nil {
 				t.Fatal(err)
 			}
