@@ -75,3 +75,11 @@ El detalle está en la [etapa 4 del plan](docs/plan.md#etapa-4-arquitectura-loca
    a veces credenciales.
 5. El NVR (servidor Boa 0.94.14rc21, sin mantenimiento) **no se expone a
    Internet**. El acceso remoto se hace por VPN al host Linux.
+
+## Licencia
+
+open-nvr se distribuye bajo la [GNU Affero General Public License v3.0 o
+posterior](LICENSE) (`AGPL-3.0-or-later`). Es la variante de la GPL para
+servicios de red: quien use una versión modificada a través de la web tiene
+derecho a su código fuente. Se elige porque la detección de personas usa
+modelos YOLO de Ultralytics, que están bajo AGPL-3.0.
