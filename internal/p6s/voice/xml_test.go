@@ -276,3 +276,19 @@ func TestReplyResults(t *testing.T) {
 		t.Fatal("ID cruzado aceptado")
 	}
 }
+
+// Respuesta real del NVR cuando el canal ya tiene otra sesión de voz.
+func TestParseCreateReplyBusyChannel(t *testing.T) {
+	busy := newCommand(VoiceStreamCreateReplyID, `<VoiceStreamCreateReply MediaFlag="-1" CmdReply="1" />`)
+	reply, err := ParseVoiceStreamCreateReply(busy.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reply.Success() || reply.CmdReply != 1 || reply.MediaFlag != 0 {
+		t.Fatalf("respuesta = %+v", reply)
+	}
+	ok := newCommand(VoiceStreamCreateReplyID, `<VoiceStreamCreateReply MediaFlag="-1" CmdReply="0" />`)
+	if _, err := ParseVoiceStreamCreateReply(ok.Payload); err == nil {
+		t.Fatal("MediaFlag -1 con CmdReply 0 debía ser inválido")
+	}
+}

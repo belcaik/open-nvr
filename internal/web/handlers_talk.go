@@ -10,6 +10,7 @@ import (
 
 	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/p6s/voice"
+	"github.com/belcaik/open-nvr/internal/talk"
 	"github.com/coder/websocket"
 )
 
@@ -17,6 +18,8 @@ const (
 	talkProtocolPrefix = "opennvr-talk."
 	talkQueueFrames    = 4
 	talkMaxDuration    = 5 * time.Minute
+	// talkReady avisa al navegador de que la sesión P6S ya está abierta.
+	talkReady = "ready"
 )
 
 type talkClose struct {
@@ -53,14 +56,22 @@ func (s *server) talk(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cancel()
 		logx.Printf("talk canal %d: abrir voz: %v", channel, err)
-		reason := "No se pudo abrir el micrófono"
-		if errors.Is(err, voice.ErrResult) || errors.Is(err, voice.ErrCmdReply) {
-			reason = "La cámara rechazó la sesión de audio"
+		code, reason := websocket.StatusInternalError, "No se pudo abrir el micrófono"
+		switch {
+		// El NVR responde CmdReply=1 cuando el canal ya tiene otra sesión.
+		case errors.Is(err, talk.ErrBusy) || errors.Is(err, voice.ErrCmdReply):
+			code, reason = websocket.StatusTryAgainLater, "El audio de esta cámara está en uso por otra sesión"
+		case errors.Is(err, voice.ErrResult):
+			code, reason = websocket.StatusPolicyViolation, "La cámara rechazó la sesión de audio"
 		}
-		_ = conn.Close(websocket.StatusPolicyViolation, reason)
+		_ = conn.Close(code, reason)
 		return
 	}
 	defer session.Close()
+	if err := conn.Write(ctx, websocket.MessageText, []byte(talkReady)); err != nil {
+		cancel()
+		return
+	}
 
 	frames := make(chan []byte, talkQueueFrames)
 	errs := make(chan error, 2)

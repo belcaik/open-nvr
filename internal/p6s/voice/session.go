@@ -32,6 +32,7 @@ type Config struct {
 	CommandTimeout time.Duration
 	FrameInterval  time.Duration
 	Sleep          func(context.Context, time.Duration) error
+	Now            func() time.Time
 }
 
 // Session es una sesión VoiceStream sobre command (6060) y media (6066).
@@ -41,7 +42,7 @@ type Session struct {
 	cfg      Config
 	flag     uint32
 	seq      uint32
-	lastSend time.Time
+	nextSend time.Time
 
 	cmdMu     sync.Mutex
 	replies   chan p6s.Command
@@ -165,9 +166,13 @@ func (s *Session) Send(ctx context.Context, pcmu []byte) error {
 	if err := ValidatePCMUPayload(pcmu); err != nil {
 		return err
 	}
-	if !s.lastSend.IsZero() {
-		if err := s.sleep(ctx, s.cfg.FrameInterval); err != nil {
-			return err
+	// El ritmo sigue un calendario fijo: una pausa constante tras cada
+	// escritura deriva respecto del micrófono y acumula retraso.
+	if !s.nextSend.IsZero() {
+		if wait := s.nextSend.Sub(s.cfg.Now()); wait > 0 {
+			if err := s.sleep(ctx, wait); err != nil {
+				return err
+			}
 		}
 	}
 	stopCmd := watchContext(ctx, s.command)
@@ -181,8 +186,19 @@ func (s *Session) Send(ctx context.Context, pcmu []byte) error {
 	if err := p6s.WriteMediaFrame(s.media, frame); err != nil {
 		return contextError(ctx, err)
 	}
-	s.lastSend = time.Now()
+	s.schedule()
 	return nil
+}
+
+// schedule fija el plazo del siguiente bloque. Si el llamador llegó más de
+// un intervalo tarde, el calendario se reinicia en lugar de enviar en ráfaga.
+func (s *Session) schedule() {
+	now := s.cfg.Now()
+	base := s.nextSend
+	if base.IsZero() || now.Sub(base) > s.cfg.FrameInterval {
+		base = now
+	}
+	s.nextSend = base.Add(s.cfg.FrameInterval)
 }
 
 func (s *Session) sleep(ctx context.Context, d time.Duration) error {
@@ -214,6 +230,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.CommandTimeout == 0 {
 		c.CommandTimeout = 5 * time.Second
+	}
+	if c.Now == nil {
+		c.Now = time.Now
 	}
 	return c
 }

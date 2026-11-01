@@ -371,11 +371,20 @@ func ParseVoiceStreamCreateReply(payload []byte) (VoiceStreamCreateReply, error)
 	if err := requireID(doc, VoiceStreamCreateReplyID); err != nil {
 		return VoiceStreamCreateReply{}, err
 	}
-	flag, err := parseUint32Attr(attrs, "MediaFlag")
+	reply, err := parseResult(attrs, "CmdReply")
 	if err != nil {
 		return VoiceStreamCreateReply{}, err
 	}
-	reply, err := parseResult(attrs, "CmdReply")
+	// Con el canal ocupado el NVR responde MediaFlag="-1" CmdReply="1": el
+	// flag sólo tiene sentido cuando la creación tuvo éxito.
+	if reply != 0 {
+		delete(attrs, "MediaFlag")
+		if err := leftover(attrs); err != nil {
+			return VoiceStreamCreateReply{}, err
+		}
+		return VoiceStreamCreateReply{CmdReply: reply}, nil
+	}
+	flag, err := parseUint32Attr(attrs, "MediaFlag")
 	if err != nil {
 		return VoiceStreamCreateReply{}, err
 	}

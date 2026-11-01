@@ -102,3 +102,102 @@ func TestSessionConvertsOnePCMFrameAndClosesVoice(t *testing.T) {
 		t.Fatal("Close no cerró la sesión de voz")
 	}
 }
+
+func pipeConnector() connectorFunc {
+	return func(context.Context) (net.Conn, net.Conn, error) {
+		command, commandPeer := net.Pipe()
+		media, mediaPeer := net.Pipe()
+		_ = commandPeer.Close()
+		_ = mediaPeer.Close()
+		return command, media, nil
+	}
+}
+
+// El NVR admite una sesión de voz por canal y Close tarda en recibir
+// Destroy: una nueva pulsación debe esperar al cierre anterior.
+func TestOpenWaitsForPreviousSessionOnSameChannel(t *testing.T) {
+	adapter := talk.Adapter{
+		Connector: pipeConnector(),
+		OpenVoice: func(context.Context, net.Conn, net.Conn, voice.Config) (talk.VoiceSession, error) {
+			return &fakeVoice{}, nil
+		},
+	}
+	first, err := adapter.Open(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := adapter.Open(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("otro canal no debía esperar: %v", err)
+	}
+	defer other.Close()
+
+	opened := make(chan error, 1)
+	go func() {
+		second, err := adapter.Open(context.Background(), 1)
+		if err == nil {
+			defer second.Close()
+		}
+		opened <- err
+	}()
+	select {
+	case err := <-opened:
+		t.Fatalf("la segunda sesión no esperó al cierre: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-opened:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("la segunda sesión no se abrió tras el cierre")
+	}
+}
+
+func TestOpenReportsBusyChannelAfterWait(t *testing.T) {
+	adapter := talk.Adapter{
+		Connector: pipeConnector(),
+		OpenVoice: func(context.Context, net.Conn, net.Conn, voice.Config) (talk.VoiceSession, error) {
+			return &fakeVoice{}, nil
+		},
+		BusyWait: 20 * time.Millisecond,
+	}
+	first, err := adapter.Open(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if _, err := adapter.Open(context.Background(), 1); !errors.Is(err, talk.ErrBusy) {
+		t.Fatalf("error = %v, quiero ErrBusy", err)
+	}
+}
+
+func TestOpenFailureReleasesChannel(t *testing.T) {
+	fail := true
+	adapter := talk.Adapter{
+		Connector: pipeConnector(),
+		OpenVoice: func(context.Context, net.Conn, net.Conn, voice.Config) (talk.VoiceSession, error) {
+			if fail {
+				return nil, errors.New("falló voz")
+			}
+			return &fakeVoice{}, nil
+		},
+		BusyWait: 20 * time.Millisecond,
+	}
+	if _, err := adapter.Open(context.Background(), 1); err == nil {
+		t.Fatal("Open debía fallar")
+	}
+	fail = false
+	session, err := adapter.Open(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("el canal quedó retenido tras el fallo: %v", err)
+	}
+	_ = session.Close()
+}

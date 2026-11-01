@@ -45,12 +45,25 @@ if (button && status) {
     return `${scheme}//${location.host}/api/talk/${button.dataset.channel}`;
   }
 
-  function waitForOpen(socket) {
+  // El servidor envía "ready" cuando la sesión P6S ya está abierta; antes de
+  // eso un cierre es un fallo de inicio, no una pérdida de conexión.
+  function waitForReady(socket) {
     return new Promise((resolve, reject) => {
-      socket.addEventListener("open", resolve, { once: true });
-      socket.addEventListener("error", () => reject(new Error("WebSocket")), { once: true });
-      socket.addEventListener("close", () => reject(new Error("WebSocket cerrado")), { once: true });
+      socket.addEventListener("message", (event) => {
+        if (event.data === "ready") resolve();
+        else reject(new Error("respuesta inesperada del servidor"));
+      }, { once: true });
+      socket.addEventListener("close", (event) => {
+        reject(new Error(event.reason || "conexión cerrada por el servidor"));
+      }, { once: true });
     });
+  }
+
+  function startError(error) {
+    if (error && error.name === "NotAllowedError") return "Permiso de micrófono denegado";
+    if (error && error.name === "NotFoundError") return "No se encontró ningún micrófono";
+    const detail = error && error.message ? `: ${error.message}` : "";
+    return `No se pudo iniciar el micrófono${detail}`;
   }
 
   async function begin() {
@@ -72,6 +85,8 @@ if (button && status) {
 
       state("connecting", "Conectando…");
       resources.context = new AudioContext({ latencyHint: "interactive" });
+      // Tras el await del permiso algunos navegadores lo crean suspendido.
+      if (resources.context.state === "suspended") await resources.context.resume();
       await resources.context.audioWorklet.addModule(button.dataset.worklet);
       if (!held || current !== generation) {
         cleanup(resources);
@@ -80,7 +95,7 @@ if (button && status) {
 
       resources.socket = new WebSocket(socketURL(), `opennvr-talk.${button.dataset.csrf}`);
       resources.socket.binaryType = "arraybuffer";
-      await waitForOpen(resources.socket);
+      await waitForReady(resources.socket);
       if (!held || current !== generation) {
         cleanup(resources);
         return;
@@ -117,7 +132,7 @@ if (button && status) {
       if (active === resources) active = null;
       cleanup(resources);
       if (held && current === generation) {
-        state("error", "No se pudo iniciar el micrófono");
+        state("error", startError(error));
       }
     }
   }

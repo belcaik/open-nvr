@@ -277,6 +277,12 @@ cadena real en canales 1 y 2; canal 4 rechaza el inicio con `Result=1`. La UI
 muestra ahora el motivo del cierre y `opennvr-web` registra el error P6S. Falta
 la confirmación audible del propietario tras desplegar esta versión.
 
+El NVR admite **una sesión de voz por canal**. Desde T99 el servidor espera a que
+termine el cierre de la anterior (~1 s) antes de abrir otra y la UI sólo muestra
+**Hablando** cuando la sesión P6S está abierta. Si otra pestaña o la app oficial
+ya habla por esa cámara, aparece «El audio de esta cámara está en uso por otra
+sesión» tras unos 3 s.
+
 En **Configuración** hay OSD, balance de blancos, exposición, escena, horario
 personalizado de 7×48 bloques, audio global y P2P. **Registros** consulta y
 exporta CSV cuando el firmware lo permite; este NVR responde `statusCode=-5` a
