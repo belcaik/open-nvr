@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -196,6 +197,7 @@ func newFullEnv(t *testing.T) (*env, *fakeConfig, *fakeHub) {
 		PlaybackSource: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "source %s", r.PathValue("token"))
 		}), Events: hub, Location: loc,
+		AudioState: filepath.Join(t.TempDir(), "audio.json"),
 	})
 	return e, cfg, hub
 }
@@ -356,10 +358,30 @@ func TestPutCameraCredentialReportsLoginFailure(t *testing.T) {
 	}
 }
 
+// El NVR relee siempre los valores de fábrica (T105): la página debe mostrar
+// lo último guardado desde open-nvr, o un nuevo guardado escribiría 0.
+func TestAudioFormRemembersLastSavedValues(t *testing.T) {
+	e, cfg, _ := newFullEnv(t)
+	rec := e.do(e.authed(t, "PUT", "/api/settings/nvr/audio", url.Values{"input_method": {"line-in"}, "input_volume": {"80"}, "output_volume": {"30"}}))
+	if rec.Code != 200 {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	body := e.do(e.authed(t, "GET", "/settings/nvr", nil)).Body.String()
+	if !strings.Contains(body, `name="input_volume" min="0" max="100" value="80"`) || !strings.Contains(body, `value="line-in" selected`) || !strings.Contains(body, `name="output_volume" min="0" max="100" value="30"`) {
+		t.Fatalf("la página no muestra lo guardado:\n%s", body)
+	}
+	cfg.err = errors.New("fallo")
+	e.do(e.authed(t, "PUT", "/api/settings/nvr/audio", url.Values{"input_method": {"microphone"}, "input_volume": {"10"}, "output_volume": {"10"}}))
+	cfg.err = nil
+	if body := e.do(e.authed(t, "GET", "/settings/nvr", nil)).Body.String(); !strings.Contains(body, `value="80"`) {
+		t.Fatal("un guardado fallido no debe recordarse")
+	}
+}
+
 func TestAudioFormWarnsReadbackIsUnreliable(t *testing.T) {
 	e, _, _ := newFullEnv(t)
 	body := e.do(e.authed(t, "GET", "/settings/nvr", nil)).Body.String()
-	if !strings.Contains(body, "no devuelve el volumen") {
+	if !strings.Contains(body, "lo último guardado") {
 		t.Fatal("falta el aviso de que el NVR no devuelve el valor aplicado")
 	}
 }

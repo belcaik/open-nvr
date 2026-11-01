@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -149,7 +150,9 @@ func serveWeb() error {
 		Events:         hub,
 		Talk:           talker,
 		Location:       loc,
-		FailDelay:      500 * time.Millisecond,
+		// Junto a go2rtc.yaml: es el único volumen escribible del contenedor.
+		AudioState: config.Str("AUDIO_STATE_FILE", filepath.Join(filepath.Dir(cfgPath), "opennvr-audio.json")),
+		FailDelay:  500 * time.Millisecond,
 	})
 	srv := &http.Server{Addr: listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)

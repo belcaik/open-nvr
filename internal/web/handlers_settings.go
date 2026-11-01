@@ -2,11 +2,13 @@ package web
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/nvr"
+	"github.com/belcaik/open-nvr/internal/statefile"
 )
 
 func (s *server) registerSettingsRoutes(mux *http.ServeMux, authed func(http.HandlerFunc) http.Handler) {
@@ -327,6 +329,9 @@ func (s *server) settingsNVR(w http.ResponseWriter, r *http.Request) {
 		P2P:     load(ctx, c.P2P),
 		Audio:   load(ctx, c.AudioStream),
 	}
+	if p.Audio.Err == "" {
+		s.applyRememberedAudio(&p.Audio.V)
+	}
 	s.render(w, r, http.StatusOK, "settings_nvr", "Ajustes · NVR", p)
 }
 
@@ -356,7 +361,33 @@ func (s *server) putAudio(w http.ResponseWriter, r *http.Request) {
 	if v.HasOutputVolume {
 		v.OutputVolume = out
 	}
-	s.result(w, r, s.d.Config.SetAudioStream(r.Context(), v), "Audio guardado")
+	err = s.d.Config.SetAudioStream(r.Context(), v)
+	if err == nil && s.d.AudioState != "" {
+		if saveErr := statefile.Save(s.d.AudioState, v); saveErr != nil {
+			slog.Warn("no se pudo recordar el audio global", "err", saveErr)
+		}
+	}
+	s.result(w, r, err, "Audio guardado")
+}
+
+// applyRememberedAudio sustituye lo que relee el NVR (siempre valores de
+// fábrica) por lo último que se guardó desde open-nvr.
+func (s *server) applyRememberedAudio(v *nvr.AudioStream) {
+	if s.d.AudioState == "" {
+		return
+	}
+	var saved nvr.AudioStream
+	ok, err := statefile.Load(s.d.AudioState, &saved)
+	if err != nil {
+		slog.Warn("no se pudo leer el audio recordado", "err", err)
+	}
+	if !ok || err != nil {
+		return
+	}
+	v.InputMethod, v.InputVolume = saved.InputMethod, saved.InputVolume
+	if v.HasOutputVolume && saved.HasOutputVolume {
+		v.OutputVolume = saved.OutputVolume
+	}
 }
 
 func (s *server) putRecordSettings(w http.ResponseWriter, r *http.Request) {
