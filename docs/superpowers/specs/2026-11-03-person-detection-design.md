@@ -169,3 +169,34 @@ Las referencias de día y de noche (IR) son distintas, así que se guarda una re
 - ncnn-Vulkan.
 - Posición absoluta por homografía y panorámica.
 - Varias personas objetivo a la vez.
+
+## Revisión 2: prueba real del 2026-11-03
+
+La primera prueba en la puerta mostró cuatro fallos: el modelo pierde a personas tapadas por el limonero, el motor abandona el seguimiento cuando cambia el número de track, no busca a quien pierde de vista, y el editor de zonas es demasiado pequeño. Además, el detector intentaba leer la cámara 3, que no estaba conectada al NVR.
+
+### Modelo
+YOLO26s-e2e a 416 px sustituye a YOLO26n. Medido en Baphomet (ORT, 2 hilos, 26 personas de referencia): recall 0,88 frente a 0,65 del `n`, a 95 ms por inferencia. El tamaño de entrada se lee de la forma estática del ONNX.
+
+### Cámaras conectadas
+La fuente de verdad es el NVR (`FrontConnectDeviceStatusList`, `nvr.Camera.Online`); go2rtc no sabe si un canal tiene cámara. La web consulta el NVR cada 30 s. Una cámara está **conectada** si el NVR la lista y `Online` es true; si la consulta falla se conserva el último estado conocido, y antes de la primera respuesta todas cuentan como conectadas.
+
+Mensaje de control, de la web al detector, por el mismo WebSocket `/detections`:
+
+```json
+{"type":"cameras","enabled":[1]}
+```
+
+- El detector procesa solo las cámaras de `enabled` que tenga en `DETECT_CAMERAS`; las demás paran su lectura RTSP y publican `status` con `state: "disabled"` y `fps: 0`.
+- Sin ningún mensaje recibido, procesa todas las configuradas. El último mensaje manda; una desconexión del cliente no cambia el conjunto.
+- La web envía el mensaje al conectar y cada vez que el conjunto cambia: cámaras con visión activada y conectadas.
+
+En la web, `State` gana el campo `camera` (`online`, `offline`, `unknown`). Una cámara desconectada no recibe órdenes PTZ ni rehome, su vigilante no emite `detector_down`, y se emite un evento `camera_offline` por caída y `camera_online` al volver; al volver, el motor hace rehome.
+
+### Seguimiento
+- **Recuperación**: si el track objetivo desaparece y hay otro track cuyo centro está a menos de 0,25 (coordenadas normalizadas) del último centro conocido, el motor lo adopta como objetivo sin emitir eventos nuevos. Tras un pulso la distancia admitida sube a 0,4 durante los frames ignorados, porque la imagen entera se desplaza.
+- **Búsqueda**: con el objetivo perdido 1 s, el motor pasa a `searching`: primero deshace el zoom con pulsos `ZoomOut` hasta `zoomCount = 0`, después da hasta 4 pulsos en la última dirección de pan con movimiento, respetando los límites. Cualquier track confirmado (3 frames) que aparezca durante la búsqueda pasa a ser el objetivo y vuelve a `tracking`. Cuando la persona lleva `ReturnAfter` sin verse, rehome.
+- **Pulsos proporcionales**: la duración del pulso de pan o tilt es `150 ms + 350 ms × min(1, d / 0,35)`, con `d` la distancia del punto de mira al borde de la zona muerta. Tras un pulso se ignoran 2 frames.
+- **Registro**: el motor escribe una línea de log por decisión (inicio, recuperación, búsqueda, tope de pulsos alcanzado, vuelta), nunca una por frame.
+
+### Editor de zonas
+Diálogo a pantalla completa sobre una captura de la cámara, con puntos de al menos 12 px que se pueden arrastrar. El preset propuesto para una zona nueva es el preset de inicio.

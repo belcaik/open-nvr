@@ -11,6 +11,8 @@ const (
 	EventTrackingStart   EventKind = "tracking_start"
 	EventTrackingStop    EventKind = "tracking_stop"
 	EventCameraDisplaced EventKind = "camera_displaced"
+	EventCameraOffline   EventKind = "camera_offline"
+	EventCameraOnline    EventKind = "camera_online"
 	EventDetectorDown    EventKind = "detector_down"
 )
 

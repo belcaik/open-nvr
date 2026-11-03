@@ -52,7 +52,43 @@
     });
   }
 
-  const api = { letterboxRect, normalizePoint, denormalizePoint, pointInPolygon, activeZones };
+  // Radio en píxeles del bitmap para que el punto mida screenRadius px en pantalla.
+  function captureRadius(screenRadius, bitmapWidth, displayWidth) {
+    if (!(screenRadius > 0)) return 0;
+    if (!(bitmapWidth > 0) || !(displayWidth > 0)) return screenRadius;
+    return (screenRadius * bitmapWidth) / displayWidth;
+  }
+
+  // Índice del punto bajo el cursor, a lo sumo a `radius` del centro. -1 si no hay.
+  function nearestPoint(points, cursor, radius) {
+    if (!cursor || !(radius >= 0) || !Array.isArray(points)) return -1;
+    let found = -1;
+    let best = radius;
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+      const distance = Math.hypot(point.x - cursor.x, point.y - cursor.y);
+      if (distance <= best) {
+        best = distance;
+        found = i;
+      }
+    }
+    return found;
+  }
+
+  // Copia los puntos y mueve `index` al cursor, en coordenadas normalizadas del rectángulo.
+  function dragPoint(points, index, cursor, rect) {
+    const next = (points || []).map((point) => ({ x: point.x, y: point.y }));
+    if (index < 0 || index >= next.length) return next;
+    const moved = normalizePoint(cursor, rect);
+    if (moved) next[index] = moved;
+    return next;
+  }
+
+  const api = {
+    letterboxRect, normalizePoint, denormalizePoint, pointInPolygon, activeZones,
+    captureRadius, nearestPoint, dragPoint,
+  };
   root.VisionGeom = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

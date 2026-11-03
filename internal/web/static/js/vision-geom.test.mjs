@@ -23,6 +23,37 @@ test("detecta un punto dentro y fuera de un polígono", () => {
   assert.equal(geom.pointInPolygon({ x: 0.5, y: 0.5 }, polygon.slice(0, 2)), false);
 });
 
+test("el radio en la captura mide 12 px en pantalla", () => {
+  const wide = geom.captureRadius(12, 1920, 320);
+  assert.equal(wide, 72);
+  assert.equal(wide * 320 / 1920, 12);
+  assert.equal(geom.captureRadius(12, 640, 640), 12);
+  const enlarged = geom.captureRadius(12, 200, 800);
+  assert.equal(enlarged * 800 / 200, 12);
+  assert.equal(geom.captureRadius(12, 0, 320), 12);
+});
+
+test("el arrastre toma el punto bajo el cursor y lo mueve sin mutar el resto", () => {
+  const bitmapWidth = 1920;
+  const displayWidth = 320;
+  const radius = geom.captureRadius(12, bitmapWidth, displayWidth);
+  const scale = bitmapWidth / displayWidth;
+  const placed = [{ x: 100 * scale, y: 80 * scale }, { x: 400 * scale, y: 200 * scale }];
+  const onEdge = { x: placed[0].x + 12 * scale, y: placed[0].y };
+  assert.equal(geom.nearestPoint(placed, onEdge, radius), 0);
+  assert.equal(geom.nearestPoint(placed, { x: placed[0].x + 13 * scale, y: placed[0].y }, radius), -1);
+  assert.equal(geom.nearestPoint(placed, { x: 250 * scale, y: 140 * scale }, radius), -1);
+
+  const rect = { x: 0, y: 0, width: bitmapWidth, height: 1080 };
+  const normalized = placed.map((point) => geom.normalizePoint(point, rect));
+  const moved = geom.dragPoint(normalized, 0, { x: 480, y: 270 }, rect);
+  assert.deepEqual(moved[0], { x: 480 / 1920, y: 270 / 1080 });
+  assert.deepEqual(moved[1], normalized[1]);
+  assert.notEqual(moved, normalized);
+  assert.deepEqual(geom.dragPoint(normalized, 0, { x: -20, y: 4000 }, rect)[0], { x: 0, y: 1 });
+  assert.equal(geom.dragPoint(normalized, 5, { x: 10, y: 10 }, rect).length, 2);
+});
+
 test("activa siempre las zonas generales y solo el preset de una pose válida", () => {
   const zones = [
     { id: "general", pose: { preset: 0 } },

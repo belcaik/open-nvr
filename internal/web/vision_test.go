@@ -51,7 +51,7 @@ func (f *fakeVision) CaptureReference(context.Context, int, int) (pose.Mode, err
 }
 func (f *fakeVision) Manual(ch int) { f.manual = append(f.manual, ch) }
 func (f *fakeVision) Subscribe(int) (<-chan visionapp.Update, func()) {
-	f.updates <- visionapp.Update{Type: "state", State: visionapp.State{State: "at_preset", Detector: "ok"}}
+	f.updates <- visionapp.Update{Type: "state", State: visionapp.State{State: "at_preset", Detector: "ok", Camera: "online"}}
 	return f.updates, func() {}
 }
 func (f *fakeVision) History() *events.History { return f.history }
@@ -106,6 +106,9 @@ func TestVisionSSEStartsWithState(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+	if !strings.Contains(w.String(), `"camera":"online"`) {
+		t.Fatalf("SSE sin estado de cámara: %q", w.String())
+	}
 	cancel()
 	<-done
 }
@@ -122,6 +125,20 @@ func TestVisionEventsFiltersCamAndKinds(t *testing.T) {
 	}
 	rec := e.do(e.authed(t, http.MethodGet, "/api/vision/events?cam=1&kind=zone_enter", nil))
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"id":"keep"`) || strings.Contains(rec.Body.String(), `"id":"kind"`) || strings.Contains(rec.Body.String(), `"id":"cam"`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVisionEventsAcceptsCameraConnectionKinds(t *testing.T) {
+	e, v := visionTestEnv(t)
+	base := time.Date(2026, 11, 3, 10, 0, 0, 0, time.UTC)
+	for i, kind := range []vision.EventKind{vision.EventCameraOffline, vision.EventCameraOnline} {
+		if _, err := v.history.Record(context.Background(), vision.Event{ID: string(kind), Cam: 3, Kind: kind, At: base.Add(time.Duration(i) * time.Minute)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := e.do(e.authed(t, http.MethodGet, "/api/vision/events?kind=camera_offline&kind=camera_online", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"kind":"camera_offline"`) || !strings.Contains(rec.Body.String(), `"kind":"camera_online"`) {
 		t.Fatalf("%d %s", rec.Code, rec.Body.String())
 	}
 }

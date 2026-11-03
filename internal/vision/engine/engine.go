@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -15,7 +16,12 @@ import (
 )
 
 const (
-	pulseDuration      = 250 * time.Millisecond
+	fixedPulseDuration = 250 * time.Millisecond
+	minPulseDuration   = 150 * time.Millisecond
+	maxPulseDuration   = 500 * time.Millisecond
+	searchAfter        = time.Second
+	maxSearchPulses    = 4
+	ignoredFrames      = 2
 	stopTimeout        = 3 * time.Second
 	defaultSettleDelay = 4 * time.Second
 	deadZoneMin        = 0.425
@@ -29,6 +35,7 @@ type State string
 const (
 	AtPreset  State = "at_preset"
 	Tracking  State = "tracking"
+	Searching State = "searching"
 	Returning State = "returning"
 	Paused    State = "paused"
 )
@@ -99,6 +106,11 @@ type Engine struct {
 	pan       int
 	tilt      int
 	zoomCount int
+	lastPan   int
+	searchPan int
+	panLimit  bool
+	tiltLimit bool
+	zoomLimit bool
 
 	activeCancel context.CancelFunc
 	manualAt     time.Time
@@ -207,6 +219,7 @@ func (e *Engine) processFrame(ctx context.Context, frame vision.Frame) error {
 	e.updateSeen(frame.Tracks)
 	state := e.state
 	if !cfg.Tracking.Enabled && state != AtPreset {
+		wasSearching := state == Searching
 		e.targetID = 0
 		e.zoom = false
 		e.missingAt = time.Time{}
@@ -215,6 +228,9 @@ func (e *Engine) processFrame(ctx context.Context, frame vision.Frame) error {
 		state = AtPreset
 		stateChanged := true
 		e.mu.Unlock()
+		if wasSearching {
+			logx.Printf("vision engine cámara %d: fin de búsqueda (seguimiento desactivado)", e.Cam)
+		}
 		e.emitEvent(vision.EventTrackingStop, "", 0, nil, now, "")
 		if stateChanged {
 			e.notifyState(AtPreset, Pose{})
@@ -257,12 +273,21 @@ func (e *Engine) processFrame(ctx context.Context, frame vision.Frame) error {
 		e.targetID = target.ID
 		e.targetBox = target.Box
 		e.zoom = zoom
-		e.missingAt = time.Time{}
+		e.missingAt = now
+		e.lastPan = 0
+		e.searchPan = 0
+		e.panLimit, e.tiltLimit, e.zoomLimit = false, false, false
 		e.mu.Unlock()
+		logx.Printf("vision engine cámara %d: inicio de seguimiento del track %d", e.Cam, target.ID)
 		box := target.Box
 		e.emitEvent(vision.EventTrackingStart, "", target.ID, &box, now, "")
 		e.notifyState(Tracking, e.currentPose())
 		return e.trackPulse(ctx, cfg, target.Box)
+	}
+
+	if state == Searching {
+		e.mu.Unlock()
+		return e.processSearchFrame(ctx, cfg, frame, now)
 	}
 
 	var target *vision.Track
@@ -273,21 +298,37 @@ func (e *Engine) processFrame(ctx context.Context, frame vision.Frame) error {
 		}
 	}
 	if target == nil {
-		if e.missingAt.IsZero() {
+		oldID := e.targetID
+		if recovered, distance, ok := nearestTrack(frame.Tracks, e.targetBox, recoveryDistance(e.ignore)); ok {
+			e.targetID = recovered.ID
+			e.targetBox = recovered.Box
 			e.missingAt = now
+			target = &recovered
+			logx.Printf("vision engine cámara %d: recuperación de track %d → %d (distancia %.3f)", e.Cam, oldID, recovered.ID, distance)
 		}
-		returnAfter := cfg.Tracking.ReturnAfter
-		lost := now.Sub(e.missingAt) >= returnAfter
-		trackID := e.targetID
-		e.mu.Unlock()
-		if lost {
-			e.emitEvent(vision.EventTrackingStop, "", trackID, nil, now, "")
-			return e.Rehome(ctx)
+		if target == nil {
+			lostFor := now.Sub(e.missingAt)
+			trackID := e.targetID
+			if lostFor >= cfg.Tracking.ReturnAfter {
+				e.mu.Unlock()
+				e.emitEvent(vision.EventTrackingStop, "", trackID, nil, now, "")
+				return e.Rehome(ctx)
+			}
+			if lostFor >= searchAfter {
+				e.state = Searching
+				e.searchPan = 0
+				pose := e.pose
+				e.mu.Unlock()
+				logx.Printf("vision engine cámara %d: inicio de búsqueda del track %d", e.Cam, trackID)
+				e.notifyState(Searching, pose)
+				return e.searchPulse(ctx, cfg)
+			}
+			e.mu.Unlock()
+			return nil
 		}
-		return nil
 	}
 	e.targetBox = target.Box
-	e.missingAt = time.Time{}
+	e.missingAt = now
 	if e.ignore > 0 {
 		e.ignore--
 		e.mu.Unlock()
@@ -297,6 +338,66 @@ func (e *Engine) processFrame(ctx context.Context, frame vision.Frame) error {
 	return e.trackPulse(ctx, cfg, target.Box)
 }
 
+func (e *Engine) processSearchFrame(ctx context.Context, cfg vision.CameraConfig, frame vision.Frame, now time.Time) error {
+	e.mu.Lock()
+	if target, ok := selectReadyTarget(frame.Tracks, e.seen, false); ok {
+		e.state = Tracking
+		e.targetID = target.ID
+		e.targetBox = target.Box
+		e.missingAt = now
+		e.searchPan = 0
+		pose := e.pose
+		ignore := e.ignore
+		if ignore > 0 {
+			e.ignore--
+		}
+		e.mu.Unlock()
+		logx.Printf("vision engine cámara %d: fin de búsqueda; track %d confirmado", e.Cam, target.ID)
+		e.notifyState(Tracking, pose)
+		if ignore > 0 {
+			return nil
+		}
+		return e.trackPulse(ctx, cfg, target.Box)
+	}
+	if now.Sub(e.missingAt) >= cfg.Tracking.ReturnAfter {
+		trackID := e.targetID
+		e.mu.Unlock()
+		e.emitEvent(vision.EventTrackingStop, "", trackID, nil, now, "")
+		return e.Rehome(ctx)
+	}
+	if e.ignore > 0 {
+		e.ignore--
+		e.mu.Unlock()
+		return nil
+	}
+	e.mu.Unlock()
+	return e.searchPulse(ctx, cfg)
+}
+
+func recoveryDistance(ignored int) float64 {
+	if ignored > 0 {
+		return .4
+	}
+	return .25
+}
+
+func nearestTrack(tracks []vision.Track, previous vision.Box, limit float64) (vision.Track, float64, bool) {
+	px := (previous[0] + previous[2]) / 2
+	py := (previous[1] + previous[3]) / 2
+	var nearest vision.Track
+	best := limit
+	found := false
+	for _, candidate := range tracks {
+		x := (candidate.Box[0] + candidate.Box[2]) / 2
+		y := (candidate.Box[1] + candidate.Box[3]) / 2
+		distance := math.Hypot(x-px, y-py)
+		if distance < best {
+			nearest, best, found = candidate, distance, true
+		}
+	}
+	return nearest, best, found
+}
+
 func (e *Engine) trackPulse(ctx context.Context, cfg vision.CameraConfig, box vision.Box) error {
 	e.mu.Lock()
 	cmd, panDelta, tiltDelta, zoomDelta, ok := e.command(cfg.Tracking, box)
@@ -304,10 +405,39 @@ func (e *Engine) trackPulse(ctx context.Context, cfg vision.CameraConfig, box vi
 	if !ok {
 		return nil
 	}
+	duration := fixedPulseDuration
+	if panDelta != 0 || tiltDelta != 0 {
+		duration = proportionalPulseDuration(box)
+	}
+	return e.runPulse(ctx, cfg, Tracking, cmd, duration, panDelta, tiltDelta, zoomDelta)
+}
+
+func (e *Engine) searchPulse(ctx context.Context, cfg vision.CameraConfig) error {
+	e.mu.Lock()
+	cmd := nvr.PTZCommand("")
+	panDelta, zoomDelta := 0, 0
+	if e.zoomCount > 0 {
+		cmd, zoomDelta = nvr.ZoomOut, -1
+	} else if e.searchPan < maxSearchPulses && e.lastPan != 0 {
+		if (e.lastPan < 0 && e.pan > -cfg.Tracking.MaxPanPulses) || (e.lastPan > 0 && e.pan < cfg.Tracking.MaxPanPulses) {
+			panDelta = e.lastPan
+			cmd = directionCommand(panDelta, 0)
+		} else {
+			e.logLimit("pan", &e.panLimit)
+		}
+	}
+	e.mu.Unlock()
+	if cmd == "" {
+		return nil
+	}
+	return e.runPulse(ctx, cfg, Searching, cmd, fixedPulseDuration, panDelta, 0, zoomDelta)
+}
+
+func (e *Engine) runPulse(ctx context.Context, cfg vision.CameraConfig, expected State, cmd nvr.PTZCommand, duration time.Duration, panDelta, tiltDelta, zoomDelta int) error {
 
 	pulseCtx, cancel := context.WithCancel(ctx)
 	e.mu.Lock()
-	if e.state != Tracking {
+	if e.state != expected {
 		e.mu.Unlock()
 		cancel()
 		return nil
@@ -323,7 +453,7 @@ func (e *Engine) trackPulse(ctx context.Context, cfg vision.CameraConfig, box vi
 	}
 	started := pulseErr == nil
 	if started {
-		pulseErr = e.Clock.Sleep(pulseCtx, pulseDuration)
+		pulseErr = e.Clock.Sleep(pulseCtx, duration)
 	}
 
 	// Stop no hereda la cancelación del pulso: una orden manual o la
@@ -343,14 +473,20 @@ func (e *Engine) trackPulse(ctx context.Context, cfg vision.CameraConfig, box vi
 		e.pan += panDelta
 		e.tilt += tiltDelta
 		e.zoomCount += zoomDelta
-		e.ignore = 3
+		if panDelta != 0 {
+			e.lastPan = panDelta
+			if expected == Searching {
+				e.searchPan++
+			}
+		}
+		e.ignore = ignoredFrames
 		e.pose.Displaced = true
 		e.pose.Verified = false
 	}
 	state := e.state
 	pose := e.pose
 	stateChanged := false
-	if pulseErr != nil && !errors.Is(pulseErr, context.Canceled) && state == Tracking {
+	if pulseErr != nil && !errors.Is(pulseErr, context.Canceled) && state == expected {
 		e.state = Paused
 		state = Paused
 		stateChanged = true
@@ -359,35 +495,84 @@ func (e *Engine) trackPulse(ctx context.Context, cfg vision.CameraConfig, box vi
 	if started || stateChanged {
 		e.notifyState(state, pose)
 	}
+	if expected == Searching && stateChanged {
+		logx.Printf("vision engine cámara %d: fin de búsqueda (fallo PTZ)", e.Cam)
+	}
 	// Los fallos PTZ degradan el motor a Paused; no tumban el consumidor de
 	// detecciones. La excepción observable es la cancelación del Run, que su
 	// bucle principal atiende por ctx.Done.
 	return nil
 }
 
+func proportionalPulseDuration(box vision.Box) time.Duration {
+	x := (box[0] + box[2]) / 2
+	y := box[1] + 0.25*(box[3]-box[1])
+	dx, dy := 0.0, 0.0
+	if x < deadZoneMin {
+		dx = deadZoneMin - x
+	} else if x > deadZoneMax {
+		dx = x - deadZoneMax
+	}
+	if y < deadZoneMin {
+		dy = deadZoneMin - y
+	} else if y > deadZoneMax {
+		dy = y - deadZoneMax
+	}
+	d := math.Max(dx, dy)
+	ratio := math.Min(1, d/.35)
+	return minPulseDuration + time.Duration(float64(maxPulseDuration-minPulseDuration)*ratio)
+}
+
 func (e *Engine) command(cfg vision.TrackingConfig, box vision.Box) (nvr.PTZCommand, int, int, int, bool) {
 	x := (box[0] + box[2]) / 2
 	y := box[1] + 0.25*(box[3]-box[1])
 	panDelta, tiltDelta := 0, 0
-	if x < deadZoneMin && e.pan > -cfg.MaxPanPulses {
-		panDelta = -1
-	} else if x > deadZoneMax && e.pan < cfg.MaxPanPulses {
-		panDelta = 1
+	if x < deadZoneMin {
+		if e.pan > -cfg.MaxPanPulses {
+			panDelta = -1
+		} else {
+			e.logLimit("pan", &e.panLimit)
+		}
+	} else if x > deadZoneMax {
+		if e.pan < cfg.MaxPanPulses {
+			panDelta = 1
+		} else {
+			e.logLimit("pan", &e.panLimit)
+		}
 	}
-	if y < deadZoneMin && e.tilt < cfg.MaxTiltPulses {
-		tiltDelta = 1
-	} else if y > deadZoneMax && e.tilt > -cfg.MaxTiltPulses {
-		tiltDelta = -1
+	if y < deadZoneMin {
+		if e.tilt < cfg.MaxTiltPulses {
+			tiltDelta = 1
+		} else {
+			e.logLimit("tilt", &e.tiltLimit)
+		}
+	} else if y > deadZoneMax {
+		if e.tilt > -cfg.MaxTiltPulses {
+			tiltDelta = -1
+		} else {
+			e.logLimit("tilt", &e.tiltLimit)
+		}
 	}
 	if panDelta != 0 || tiltDelta != 0 {
 		return directionCommand(panDelta, tiltDelta), panDelta, tiltDelta, 0, true
 	}
 	height := box[3] - box[1]
 	awayFromBorder := box[0] > borderMargin && box[1] > borderMargin && box[2] < 1-borderMargin && box[3] < 1-borderMargin
-	if e.zoom && height < cfg.ZoomTargetHeight && awayFromBorder && e.zoomCount < cfg.MaxZoomPulses {
-		return nvr.ZoomIn, 0, 0, 1, true
+	if e.zoom && height < cfg.ZoomTargetHeight && awayFromBorder {
+		if e.zoomCount < cfg.MaxZoomPulses {
+			return nvr.ZoomIn, 0, 0, 1, true
+		}
+		e.logLimit("zoom", &e.zoomLimit)
 	}
 	return "", 0, 0, 0, false
+}
+
+func (e *Engine) logLimit(axis string, logged *bool) {
+	if *logged {
+		return
+	}
+	*logged = true
+	logx.Printf("vision engine cámara %d: tope de %s alcanzado", e.Cam, axis)
 }
 
 func directionCommand(pan, tilt int) nvr.PTZCommand {
@@ -500,6 +685,7 @@ func (e *Engine) Manual() {
 	e.init()
 	now := e.Clock.Now()
 	e.mu.Lock()
+	wasSearching := e.state == Searching
 	e.manualAt = now
 	e.manualSeq++
 	seq := e.manualSeq
@@ -509,6 +695,9 @@ func (e *Engine) Manual() {
 	cancel := e.activeCancel
 	pose := e.pose
 	e.mu.Unlock()
+	if wasSearching {
+		logx.Printf("vision engine cámara %d: fin de búsqueda (control manual)", e.Cam)
+	}
 	if cancel != nil {
 		cancel()
 	}
@@ -560,9 +749,14 @@ func (e *Engine) rehome(ctx context.Context, resumePaused bool) error {
 		return nil
 	}
 	returnGeneration := e.manualSeq
+	wasSearching := e.state == Searching
 	e.state = Returning
 	pose := e.pose
 	e.mu.Unlock()
+	if wasSearching {
+		logx.Printf("vision engine cámara %d: fin de búsqueda sin objetivo", e.Cam)
+	}
+	logx.Printf("vision engine cámara %d: vuelta al preset %d", e.Cam, cfg.HomePreset)
 	e.notifyState(Returning, pose)
 
 	failureMessage := "verificación fallida al volver al preset"
@@ -642,6 +836,8 @@ func (e *Engine) finishReturn(pose Pose) {
 	e.missingAt = time.Time{}
 	e.ignore = 0
 	e.pan, e.tilt, e.zoomCount = 0, 0, 0
+	e.lastPan, e.searchPan = 0, 0
+	e.panLimit, e.tiltLimit, e.zoomLimit = false, false, false
 	e.mu.Unlock()
 	e.notifyState(AtPreset, pose)
 }

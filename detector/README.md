@@ -1,7 +1,7 @@
 # opennvr-detect
 
 Servicio Python 3.12 que lee el substream de cada cámara sin acumular frames,
-detecta personas con YOLO26n-e2e mediante ONNX Runtime CPU, mantiene IDs de
+detecta personas con YOLO26s-e2e mediante ONNX Runtime CPU, mantiene IDs de
 seguimiento y publica el resultado por WebSocket. El modelo se monta fuera de
 la imagen del contenedor.
 
@@ -18,7 +18,7 @@ Ejemplo:
 
 ```sh
 DETECT_CAMERAS='1=rtsp://127.0.0.1:8554/cam1_sub' \
-DETECT_MODEL=/models/yolo26n.onnx python -m opennvr_detect
+DETECT_MODEL=/models/yolo26s.onnx python -m opennvr_detect
 ```
 
 Las URLs nunca se incluyen en los logs. RTSP utiliza TCP y reconecta con
@@ -30,6 +30,16 @@ El servidor escucha en `DETECT_LISTEN`. La ruta WebSocket es `/detections` y
 `GET /healthz` devuelve HTTP 200 con el último estado de cada cámara. Cada
 cliente tiene una cola acotada independiente: si queda atrás pierde los
 mensajes más antiguos, pero nunca frena la detección.
+
+La web habilita las cámaras conectadas por ese mismo WebSocket:
+
+```json
+{"type":"cameras","enabled":[1]}
+```
+
+El último mensaje manda y se conserva si el cliente se desconecta. Sin ningún
+mensaje se procesan todas las cámaras configuradas. Los mensajes inválidos se
+registran y se ignoran sin cerrar la conexión.
 
 Un mensaje de detecciones se publica por cada frame procesado, incluso sin
 tracks:
@@ -48,7 +58,8 @@ Cada cinco segundos y en cada cambio de estado se publica:
 {"type":"status","cam":1,"state":"ok","fps":9.7,"infer_ms_p50":18.2,"dropped":12}
 ```
 
-`state` es `starting`, `ok` o `reconnecting`.
+`state` es `starting`, `ok`, `reconnecting` o `disabled`. Una cámara fuera del
+conjunto habilitado detiene su fuente y publica `disabled` con `fps: 0`.
 
 ## Licencia
 

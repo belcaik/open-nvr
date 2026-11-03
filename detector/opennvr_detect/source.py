@@ -39,6 +39,7 @@ class FrameSource:
         self._dropped = 0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._capture: cv2.VideoCapture | None = None
 
     @property
     def state(self) -> str:
@@ -53,17 +54,30 @@ class FrameSource:
     def start(self) -> None:
         if self._thread is not None:
             return
+        self._stop = threading.Event()
+        with self._condition:
+            self._latest = None
+            self._state = "starting"
+            self._condition.notify_all()
         self._thread = threading.Thread(
-            target=self._run, name=f"camera-{self.camera}", daemon=True
+            target=self._run,
+            args=(self._stop,),
+            name=f"camera-{self.camera}",
+            daemon=True,
         )
         self._thread.start()
 
     def stop(self) -> None:
+        if self._thread is None:
+            return
         self._stop.set()
         with self._condition:
             self._condition.notify_all()
-        if self._thread is not None:
-            self._thread.join(timeout=5)
+        # La captura solo la suelta su propio hilo: VideoCapture no admite
+        # release() concurrente con open() o read(). Un hilo bloqueado en
+        # open() se abandona; su evento ya está puesto y saldrá solo.
+        self._thread.join(timeout=4)
+        self._thread = None
 
     def get_latest(self, timeout: float = 0.25) -> CapturedFrame | None:
         deadline = time.monotonic() + timeout
@@ -81,26 +95,43 @@ class FrameSource:
             self._consumed_generation = self._latest.generation
             return self._latest
 
-    def _set_state(self, state: str) -> None:
+    def _set_state(self, state: str, stop: threading.Event) -> None:
         with self._condition:
+            if self._stop is not stop:
+                return
             self._state = state
             self._condition.notify_all()
 
-    def _open(self) -> cv2.VideoCapture:
+    def _release_capture(self, capture: cv2.VideoCapture) -> None:
+        with self._condition:
+            if self._capture is capture:
+                self._capture = None
+        capture.release()
+
+    def _open(self, stop: threading.Event) -> cv2.VideoCapture:
+        capture = cv2.VideoCapture()
+        with self._condition:
+            if self._stop is stop:
+                self._capture = capture
         if not self._is_file:
             os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
-            return cv2.VideoCapture(self._url, cv2.CAP_FFMPEG)
-        return cv2.VideoCapture(str(Path(self._url)))
+            capture.open(self._url, cv2.CAP_FFMPEG)
+        else:
+            capture.open(str(Path(self._url)))
+        return capture
 
-    def _run(self) -> None:
+    def _run(self, stop: threading.Event) -> None:
         backoff = 1.0
-        while not self._stop.is_set():
-            capture = self._open()
+        while not stop.is_set():
+            capture = self._open(stop)
+            if stop.is_set():
+                self._release_capture(capture)
+                break
             if not capture.isOpened():
-                capture.release()
-                self._set_state("reconnecting")
+                self._release_capture(capture)
+                self._set_state("reconnecting", stop)
                 LOGGER.warning("camera %s unavailable; retrying", self.camera)
-                if self._stop.wait(backoff):
+                if stop.wait(backoff):
                     break
                 backoff = min(backoff * 2, 30.0)
                 continue
@@ -108,30 +139,33 @@ class FrameSource:
             interval = 1.0 / fps if fps and fps > 0 else 0.0
             next_frame_at = time.monotonic()
             backoff = 1.0
-            self._set_state("ok")
+            self._set_state("ok", stop)
             LOGGER.info("camera %s connected", self.camera)
-            while not self._stop.is_set():
+            while not stop.is_set():
                 ok, frame = capture.read()
                 if not ok:
                     break
                 if interval:
                     delay = next_frame_at - time.monotonic()
-                    if delay > 0 and self._stop.wait(delay):
+                    if delay > 0 and stop.wait(delay):
                         break
                     next_frame_at = max(next_frame_at + interval, time.monotonic())
                 captured_at = datetime.now(timezone.utc)
                 with self._condition:
+                    # Un hilo abandonado no publica frames de una fuente parada.
+                    if self._stop is not stop:
+                        break
                     self._generation += 1
                     if self._latest is not None and self._latest.generation > self._consumed_generation:
                         self._dropped += 1
                     self._latest = CapturedFrame(frame, captured_at, self._generation)
                     self._condition.notify_all()
-            capture.release()
-            if self._stop.is_set():
+            self._release_capture(capture)
+            if stop.is_set():
                 break
-            self._set_state("reconnecting")
+            self._set_state("reconnecting", stop)
             LOGGER.warning("camera %s disconnected; reconnecting", self.camera)
-            if self._stop.wait(backoff):
+            if stop.wait(backoff):
                 break
             backoff = min(backoff * 2, 30.0)
 

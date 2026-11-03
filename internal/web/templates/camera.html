@@ -92,29 +92,41 @@
           <button id="new-zone" type="button">Nueva zona</button>
         </div>
       </section>
-
-      <section id="zone-editor" class="zone-editor" hidden>
-        <h3 id="zone-editor-title">Nueva zona</h3>
-        <canvas id="zone-canvas" aria-label="Editor del polígono de la zona"></canvas>
-        <p id="zone-help" class="muted">Pulsa sobre la imagen para añadir entre 3 y 32 puntos.</p>
-        <div class="row">
-          <button id="zone-undo" type="button">Deshacer punto</button>
-          <button id="zone-close" type="button">Cerrar polígono</button>
-        </div>
-        <div class="vision-fields">
-          <label>Nombre <input id="zone-name" maxlength="80" required></label>
-          <label class="check"><input id="zone-alert" type="checkbox"> Alerta</label>
-          <label class="check"><input id="zone-zoom" type="checkbox"> Zoom</label>
-        </div>
-        <p id="zone-error" class="error" role="alert"></p>
-        <div class="row">
-          <button id="zone-save" type="button">Guardar zona</button>
-          <button id="zone-cancel" type="button">Cancelar</button>
-        </div>
-      </section>
     </details>
     {{end}}
   </aside>
+  {{if .Vision}}
+  <dialog id="zone-editor" class="zone-editor" aria-labelledby="zone-editor-title">
+    <div class="zone-editor-stage">
+      <canvas id="zone-canvas" aria-label="Editor del polígono de la zona"></canvas>
+    </div>
+    <div class="zone-editor-panel">
+      <h3 id="zone-editor-title">Nueva zona</h3>
+      <p id="zone-help" class="muted">Pulsa para añadir puntos (de 3 a 32) y arrástralos para moverlos.</p>
+      <div class="row">
+        <button id="zone-undo" type="button">Deshacer punto</button>
+        <button id="zone-close" type="button">Cerrar polígono</button>
+      </div>
+      <div class="zone-editor-fields">
+        <label>Nombre <input id="zone-name" maxlength="80" required></label>
+        <label class="check"><input id="zone-alert" type="checkbox"> Alerta</label>
+        <label class="check"><input id="zone-zoom" type="checkbox"> Zoom</label>
+      </div>
+      <p id="zone-error" class="error" role="alert"></p>
+      <div class="row">
+        <button id="zone-save" type="button">Guardar zona</button>
+        <button id="zone-cancel" type="button">Cancelar</button>
+      </div>
+      <div id="zone-confirm" class="zone-confirm" hidden>
+        <p id="zone-confirm-text">Hay puntos sin guardar. ¿Cerrar de todos modos?</p>
+        <div class="row">
+          <button id="zone-confirm-stay" type="button">Seguir editando</button>
+          <button id="zone-confirm-close" type="button" class="danger">Cerrar sin guardar</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+  {{end}}
 </section>
 {{end}}
 {{define "scripts"}}<script type="module" src="{{asset "/static/js/video.js"}}"></script>

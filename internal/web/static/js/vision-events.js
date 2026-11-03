@@ -6,7 +6,15 @@ const labels = {
   tracking_start: "Inicio de seguimiento",
   tracking_stop: "Fin de seguimiento",
   camera_displaced: "Cámara desplazada",
+  camera_offline: "Cámara desconectada",
+  camera_online: "Cámara conectada",
   detector_down: "Detector no disponible",
+};
+
+// Mismo punto de conexión que el directo: rojo caída, verde vuelta.
+const icons = {
+  camera_offline: "bad",
+  camera_online: "ok",
 };
 
 const form = document.querySelector("#vision-event-filters");
@@ -28,6 +36,30 @@ function snapshotURL(path) {
 function localTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value || "—") : date.toLocaleString("es-CL");
+}
+
+function kindTitle(kind) {
+  const strong = element("strong", "event-kind");
+  if (icons[kind]) {
+    const dot = element("span", `dot ${icons[kind]}`);
+    dot.setAttribute("aria-hidden", "true");
+    strong.append(dot);
+  }
+  strong.append(document.createTextNode(labels[kind] || kind || "Evento"));
+  return strong;
+}
+
+function syncKindFilter() {
+  const select = form?.elements?.kind;
+  if (!select) return;
+  const present = new Set(Array.from(select.options, (option) => option.value));
+  for (const kind of ["camera_offline", "camera_online"]) {
+    if (present.has(kind)) continue;
+    const option = document.createElement("option");
+    option.value = kind;
+    option.textContent = labels[kind];
+    select.append(option);
+  }
 }
 
 function showSnapshot(path, description) {
@@ -56,7 +88,7 @@ function render(events) {
     }
     const body = element("div", "vision-event-body");
     body.append(element("time", "", localTime(event.at)));
-    body.append(element("strong", "", labels[event.kind] || event.kind || "Evento"));
+    body.append(kindTitle(event.kind));
     body.append(element("span", "muted", `Cámara ${event.cam}${event.zone_id ? ` · zona ${event.zone_id}` : ""}`));
     if (event.message) body.append(element("span", "", event.message));
     card.append(body);
@@ -88,4 +120,5 @@ form?.addEventListener("submit", (event) => { event.preventDefault(); load(); })
 dialog?.querySelector("[data-close]")?.addEventListener("click", () => dialog.close());
 dialog?.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
 
+syncKindFilter();
 load();
