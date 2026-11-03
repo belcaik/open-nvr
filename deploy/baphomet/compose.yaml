@@ -181,7 +181,7 @@ services:
     network_mode: host
     environment:
       DETECT_LISTEN: 127.0.0.1:8556
-      DETECT_MODEL: /models/yolo26n.onnx
+      DETECT_MODEL: ${DETECT_MODEL:-/models/yolo26s.onnx}
       DETECT_CAMERAS: ${DETECT_CAMERAS:-1=rtsp://127.0.0.1:8554/cam1_sub}
       DETECT_THREADS: ${DETECT_THREADS:-2}
     volumes:

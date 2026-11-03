@@ -86,7 +86,7 @@ def decode_output(
 
 
 class YoloDetector:
-    """A CPU-only ONNX Runtime session for the supplied YOLO26n-e2e model."""
+    """A CPU-only ONNX Runtime session for the supplied YOLO26-e2e model."""
 
     def __init__(self, model_path: str | Path, confidence: float = 0.25, threads: int = 2):
         self.model_path = str(model_path)
@@ -110,7 +110,9 @@ class YoloDetector:
         input_meta = self.session.get_inputs()[0]
         self.input_name = input_meta.name
         self.output_name = self.session.get_outputs()[0].name
-        self.size = int(input_meta.shape[-1])
+        height, width = input_meta.shape[-2:]
+        if all(isinstance(value, int) and value > 0 for value in (height, width)):
+            self.size = int(width)
 
     def detect(
         self, frame: npt.NDArray[np.uint8]

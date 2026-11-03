@@ -1,6 +1,39 @@
+from types import SimpleNamespace
+
 import numpy as np
 
-from opennvr_detect.model import decode_output, letterbox, restore_boxes
+from opennvr_detect.model import YoloDetector, decode_output, letterbox, restore_boxes
+
+
+class SessionDouble:
+    def __init__(self, shape):
+        self.shape = shape
+
+    def get_inputs(self):
+        return [SimpleNamespace(name="images", shape=self.shape)]
+
+    def get_outputs(self):
+        return [SimpleNamespace(name="output0")]
+
+
+def initialize_with_shape(monkeypatch, shape):
+    monkeypatch.setattr(
+        "opennvr_detect.model.ort.InferenceSession",
+        lambda *_args, **_kwargs: SessionDouble(shape),
+    )
+    detector = YoloDetector("unused.onnx")
+    detector._initialize()
+    return detector
+
+
+def test_model_reads_static_input_size_from_onnx(monkeypatch):
+    detector = initialize_with_shape(monkeypatch, [1, 3, 640, 640])
+    assert detector.size == 640
+
+
+def test_model_uses_416_when_input_shape_is_dynamic(monkeypatch):
+    detector = initialize_with_shape(monkeypatch, [1, 3, "height", "width"])
+    assert detector.size == 416
 
 
 def test_letterbox_round_trip_recovers_known_box_with_subpixel_error():

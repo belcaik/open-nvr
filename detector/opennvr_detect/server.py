@@ -30,6 +30,7 @@ class DetectionServer:
         self.queue_size = queue_size
         self.statuses: dict[int, dict[str, Any]] = {}
         self._clients: set[asyncio.Queue[str | None]] = set()
+        self._enabled_cameras: set[int] | None = None
         self._server: Any = None
 
     async def start(self) -> None:
@@ -47,6 +48,9 @@ class DetectionServer:
             await self._server.wait_closed()
         for queue in tuple(self._clients):
             self._offer(queue, None)
+
+    def is_enabled(self, camera: int) -> bool:
+        return self._enabled_cameras is None or camera in self._enabled_cameras
 
     def publish(self, message: dict[str, Any]) -> None:
         encoded = json.dumps(message, separators=(",", ":"))
@@ -69,21 +73,51 @@ class DetectionServer:
         except asyncio.QueueFull:
             pass
 
+    def _handle_control(self, raw: str | bytes) -> None:
+        try:
+            message = json.loads(raw)
+            enabled = message.get("enabled") if isinstance(message, dict) else None
+            if (
+                not isinstance(message, dict)
+                or message.get("type") != "cameras"
+                or not isinstance(enabled, list)
+                or any(type(camera) is not int for camera in enabled)
+            ):
+                raise ValueError("invalid cameras control")
+        except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
+            LOGGER.warning("ignoring invalid cameras control message")
+            return
+        self._enabled_cameras = set(enabled)
+
+    async def _receive(self, connection: ServerConnection) -> None:
+        while True:
+            self._handle_control(await connection.recv())
+
+    async def _send(
+        self, connection: ServerConnection, queue: asyncio.Queue[str | None]
+    ) -> None:
+        while True:
+            message = await queue.get()
+            if message is None:
+                return
+            await connection.send(message)
+
     async def _websocket(self, connection: ServerConnection) -> None:
         if connection.request.path != "/detections":
             await connection.close(code=1008, reason="not found")
             return
         queue: asyncio.Queue[str | None] = asyncio.Queue(self.queue_size)
         self._clients.add(queue)
+        tasks = [
+            asyncio.create_task(self._receive(connection)),
+            asyncio.create_task(self._send(connection, queue)),
+        ]
         try:
-            while True:
-                message = await queue.get()
-                if message is None:
-                    return
-                await connection.send(message)
-        except Exception:
-            pass
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             self._clients.discard(queue)
 
     def _http_request(
@@ -142,15 +176,34 @@ class CameraWorker:
         return self.tracker.update(boxes, confidences), inference_ms
 
     async def run(self, stop: asyncio.Event) -> None:
-        self.source.start()
+        source_running = False
         try:
             while not stop.is_set():
+                enabled = self.server.is_enabled(self.camera)
+                if enabled != source_running:
+                    if enabled:
+                        self.source.start()
+                        source_running = True
+                    else:
+                        await asyncio.to_thread(self.source.stop)
+                        source_running = False
                 now = time.monotonic()
-                state = self.source.state
+                state = self.source.state if enabled else "disabled"
                 if state != self._last_state or now - self._last_status >= 5.0:
-                    self.server.publish_status(self._status(now))
+                    status = self._status(now) if enabled else {
+                        "type": "status",
+                        "cam": self.camera,
+                        "state": "disabled",
+                        "fps": 0,
+                        "infer_ms_p50": 0.0,
+                        "dropped": self.source.dropped,
+                    }
+                    self.server.publish_status(status)
                     self._last_state = state
                     self._last_status = now
+                if not enabled:
+                    await asyncio.sleep(0.01)
+                    continue
                 frame = self.source.get_latest(0)
                 if frame is None:
                     await asyncio.sleep(0.01)
@@ -158,6 +211,8 @@ class CameraWorker:
                 # En un hilo: ORT suelta el GIL, así cada cámara infiere en
                 # paralelo y el bucle sigue atendiendo a los clientes.
                 tracks, inference_ms = await asyncio.to_thread(self._infer, frame.image)
+                if not self.server.is_enabled(self.camera):
+                    continue
                 self.sequence += 1
                 processed = time.monotonic()
                 self._inference_ms.append(inference_ms)
@@ -184,5 +239,6 @@ class CameraWorker:
                     }
                 )
         finally:
-            self.source.stop()
+            if source_running:
+                await asyncio.to_thread(self.source.stop)
 
