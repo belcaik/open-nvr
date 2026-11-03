@@ -58,11 +58,10 @@ func TestSessionTamper(t *testing.T) {
 	v := s.Encode(se)
 	for _, i := range []int{0, len(v) - 1} {
 		b := []byte(v)
-		if b[i] == 'A' {
-			b[i] = 'B'
-		} else {
-			b[i] = 'A'
-		}
+		// Invierte el bit alto del sextete: el último carácter de base64 sin
+		// relleno tiene bits bajos que no se usan y cambiarlos no altera nada.
+		const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+		b[i] = alphabet[strings.IndexByte(alphabet, b[i])^32]
 		if _, err := s.Decode(string(b)); err == nil {
 			t.Fatalf("modificación en %d aceptada", i)
 		}
