@@ -88,7 +88,12 @@ Las referencias de día y de noche (IR) son distintas, así que se guarda una re
      └───────────── PAUSADO (ReturnAfter sin uso manual) ◄────── cualquier estado
 ```
 
-- **EN_PRESET:** zonas activas según la pose. Si alguien entra en una zona con `Alert`, se genera un evento `zone_enter`. Si la zona tiene `Zoom` y la cámara tiene seguimiento, pasa a SIGUIENDO con zoom.
+- **EN_PRESET:** zonas activas según la pose. Si alguien entra en una zona con `Alert`, se genera un evento `zone_enter`. **La zona tiene prioridad:** moverse desactiva las zonas ligadas al preset, así que el seguimiento solo empieza en uno de estos casos:
+  1. Una persona entra en una zona. Se la sigue, con zoom si la zona tiene `Zoom`.
+  2. No hay zonas ligadas al preset. Basta con ver a la persona 3 frames seguidos.
+  3. Una persona vista 3 frames está a punto de salir de la imagen: el centro de su caja cae en el 15 % del borde.
+
+  Así, quien camina hacia la puerta dispara la alerta antes de que la cámara se mueva.
 - **SIGUIENDO:**
   - Objetivo: un único track, el primero que entró en una zona o, si no hay ninguno, el de mayor confianza. Se mantiene mientras exista, aunque aparezcan otros.
   - Control por pulsos de 250 ms a la velocidad configurada (`Guard.Start` y luego `Stop`). Tras cada pulso se descartan 3 frames, porque la imagen llega con retraso.
