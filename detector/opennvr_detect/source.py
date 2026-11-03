@@ -72,15 +72,11 @@ class FrameSource:
             return
         self._stop.set()
         with self._condition:
-            capture = self._capture
             self._condition.notify_all()
-        if capture is not None:
-            capture.release()
+        # La captura solo la suelta su propio hilo: VideoCapture no admite
+        # release() concurrente con open() o read(). Un hilo bloqueado en
+        # open() se abandona; su evento ya está puesto y saldrá solo.
         self._thread.join(timeout=4)
-        with self._condition:
-            capture = self._capture
-        if capture is not None:
-            capture.release()
         self._thread = None
 
     def get_latest(self, timeout: float = 0.25) -> CapturedFrame | None:
@@ -156,6 +152,9 @@ class FrameSource:
                     next_frame_at = max(next_frame_at + interval, time.monotonic())
                 captured_at = datetime.now(timezone.utc)
                 with self._condition:
+                    # Un hilo abandonado no publica frames de una fuente parada.
+                    if self._stop is not stop:
+                        break
                     self._generation += 1
                     if self._latest is not None and self._latest.generation > self._consumed_generation:
                         self._dropped += 1

@@ -206,3 +206,10 @@ async def test_all_configured_cameras_run_without_control_message():
         stop.set()
         await asyncio.gather(*tasks, return_exceptions=True)
 
+
+
+def test_healthcheck_fails_without_server(monkeypatch):
+    from opennvr_detect import healthcheck
+
+    monkeypatch.setenv("DETECT_LISTEN", "127.0.0.1:1")
+    assert healthcheck.main() == 1

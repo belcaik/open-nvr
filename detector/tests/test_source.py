@@ -67,15 +67,22 @@ def test_source_reopens_capture_when_started_after_stop(monkeypatch):
     source.stop()
 
 
-def test_stop_releases_capture_blocked_opening_in_less_than_five_seconds(monkeypatch):
+def test_stop_abandons_capture_blocked_opening_without_releasing_it(monkeypatch):
     install_capture_double(monkeypatch, blocked=True)
     source = FrameSource(1, "rtsp://127.0.0.1/unused")
     source.start()
-    wait_for_capture(CaptureDouble.instances[0])
+    deadline = time.monotonic() + 1
+    while not CaptureDouble.instances and time.monotonic() < deadline:
+        time.sleep(0.01)
+    capture = CaptureDouble.instances[0]
+    wait_for_capture(capture)
     started = time.monotonic()
     source.stop()
-    elapsed = time.monotonic() - started
-    capture = CaptureDouble.instances[0]
-    assert capture.release_calls > 0
-    assert elapsed < 5
-
+    assert time.monotonic() - started < 5
+    # release() concurrente con open() puede tumbar OpenCV: solo lo llama su hilo.
+    assert capture.release_calls == 0
+    capture.released.set()
+    deadline = time.monotonic() + 1
+    while capture.release_calls == 0 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert capture.release_calls == 1
