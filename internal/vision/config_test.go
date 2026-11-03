@@ -63,6 +63,7 @@ func TestStoreValidationRejectsInvalidConfig(t *testing.T) {
 		{"zoom above range", func(c *CameraConfig) { c.Tracking.ZoomTargetHeight = 0.91 }},
 		{"return too soon", func(c *CameraConfig) { c.Tracking.ReturnAfter = 4 * time.Second }},
 		{"negative home preset", func(c *CameraConfig) { c.HomePreset = -1 }},
+		{"tracking without home preset", func(c *CameraConfig) { c.HomePreset = 0 }},
 		{"negative zone preset", func(c *CameraConfig) { c.Zones[0].Pose.Preset = -1 }},
 	}
 	for _, test := range tests {

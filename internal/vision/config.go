@@ -86,6 +86,9 @@ func validateConfig(cfg CameraConfig) error {
 		return fmt.Errorf("home preset inválido: debe ser mayor o igual a 0")
 	}
 	tracking := cfg.Tracking
+	if tracking.Enabled && cfg.HomePreset < 1 {
+		return fmt.Errorf("home preset inválido: el seguimiento necesita un preset de inicio (1 o más)")
+	}
 	if tracking.Speed < 1 || tracking.Speed > 10 {
 		return fmt.Errorf("velocidad de tracking inválida: debe estar entre 1 y 10")
 	}
