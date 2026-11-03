@@ -54,9 +54,11 @@ func (s *server) channel(r *http.Request) (int, bool) {
 }
 
 type cameraPage struct {
-	Tile  tile
-	Error string
-	Talk  bool
+	Tile    tile
+	Channel int
+	Error   string
+	Talk    bool
+	Vision  bool
 }
 
 func (s *server) camera(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +74,9 @@ func (s *server) camera(w http.ResponseWriter, r *http.Request) {
 			t = x
 		}
 	}
-	s.render(w, r, http.StatusOK, "camera", "Cámara "+strconv.Itoa(ch), cameraPage{Tile: t, Error: msg, Talk: s.d.Talk != nil})
+	s.render(w, r, http.StatusOK, "camera", "Cámara "+strconv.Itoa(ch), cameraPage{
+		Tile: t, Channel: ch, Error: msg, Talk: s.d.Talk != nil, Vision: s.d.Vision != nil,
+	})
 }
 
 func (s *server) snapshot(w http.ResponseWriter, r *http.Request) {

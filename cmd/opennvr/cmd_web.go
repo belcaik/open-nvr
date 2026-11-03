@@ -22,12 +22,14 @@ import (
 	"github.com/belcaik/open-nvr/internal/config"
 	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/media"
+	"github.com/belcaik/open-nvr/internal/notify"
 	"github.com/belcaik/open-nvr/internal/nvr"
 	"github.com/belcaik/open-nvr/internal/p6s/history"
 	"github.com/belcaik/open-nvr/internal/p6s/voice"
 	"github.com/belcaik/open-nvr/internal/p6sclient"
 	"github.com/belcaik/open-nvr/internal/playback"
 	"github.com/belcaik/open-nvr/internal/talk"
+	visionapp "github.com/belcaik/open-nvr/internal/vision/app"
 	"github.com/belcaik/open-nvr/internal/web"
 )
 
@@ -90,6 +92,7 @@ func serveWeb() error {
 	}
 	client := nvr.New("http://"+net.JoinHostPort(host, strconv.Itoa(config.Int("NVR_HTTP_PORT", 80))), user, pass).WithLocation(loc)
 	guard := camera.NewGuard(client, 1500*time.Millisecond, time.Now)
+	cameraService := &camera.Service{NVR: client, Guard: guard}
 	guardDone := make(chan struct{})
 	go func() { guard.Run(ctx); close(guardDone) }()
 	hub := camera.NewHub()
@@ -132,8 +135,33 @@ func serveWeb() error {
 	}
 	talker := talk.New(p6sConnector)
 	talker.VoiceConfig.Extension = extension
+	var visionService web.VisionService
+	var visionDone <-chan struct{}
+	if detectURL := config.Str("VISION_DETECT_URL", ""); detectURL != "" {
+		var notifier *notify.Notifier
+		// Avisos de visión solo con VISION_NTFY: NTFY_URL puede estar puesto
+		// ya para nvr-watch y el propietario los configurará aparte.
+		if ntfyURL := config.Str("NTFY_URL", ""); ntfyURL != "" && config.Bool("VISION_NTFY", false) {
+			notifier = &notify.Notifier{
+				URL: ntfyURL, Topic: config.Str("NTFY_TOPIC", "opennvr"), Token: config.Secret("NTFY_TOKEN"),
+				Prefix: "NVR visión: ", Throttle: notify.NewThrottle(&notify.ThrottleState{}, 60, 100),
+			}
+		}
+		visionApp, err := visionapp.New(visionapp.Config{
+			DetectURL: detectURL, ConfigPath: config.Str("VISION_CONFIG", "/data/vision/vision.json"),
+			DataDir: config.Str("VISION_DATA", "/data/vision"), Go2RTCBase: "http://" + apiListen,
+			Channels: channels, PTZ: cameraService, Notifier: notifier,
+		})
+		if err != nil {
+			return fmt.Errorf("visión: %w", err)
+		}
+		visionService = visionApp
+		done := make(chan struct{})
+		visionDone = done
+		go func() { visionApp.Run(ctx); close(done) }()
+	}
 	handler := web.NewServer(web.Deps{
-		Cameras: &camera.Service{NVR: client, Guard: guard},
+		Cameras: cameraService,
 		Sessions: &auth.Sessions{Key: key, Idle: 7 * 24 * time.Hour, MaxAge: 30 * 24 * time.Hour,
 			Refresh: time.Hour, Now: time.Now},
 		Limiter:        auth.NewLimiter(5, 15*time.Minute, time.Now),
@@ -149,6 +177,7 @@ func serveWeb() error {
 		Recordings:     client,
 		Events:         hub,
 		Talk:           talker,
+		Vision:         visionService,
 		Location:       loc,
 		// Junto a go2rtc.yaml: es el único volumen escribible del contenedor.
 		AudioState: config.Str("AUDIO_STATE_FILE", filepath.Join(filepath.Dir(cfgPath), "opennvr-audio.json")),
@@ -163,6 +192,9 @@ func serveWeb() error {
 	case err := <-errc:
 		stop()
 		<-guardDone
+		if visionDone != nil {
+			<-visionDone
+		}
 		return err
 	case <-ctx.Done():
 	}
@@ -171,6 +203,9 @@ func serveWeb() error {
 	defer cancel()
 	srv.Shutdown(shutdownCtx)
 	<-guardDone // Guard.Run para todos los movimientos al cancelar ctx
+	if visionDone != nil {
+		<-visionDone
+	}
 	return nil
 }
 

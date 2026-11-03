@@ -46,6 +46,7 @@ main { padding: 16px; }
 
 .camera { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
 .camera .tile { aspect-ratio: 16 / 9; }
+.camera-view { min-width: 0; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 12px; }
 .panel h2 { margin: 0; font-size: 13px; color: var(--muted); font-weight: 500; }
 .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -123,7 +124,58 @@ a.button:hover { border-color: var(--muted); }
 #toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 10; }
 .toast { background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius); padding: 10px 14px; }
 .tile.alert { outline: 3px solid #e3a33b; }
+
+#vision-overlay { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.vision-state { margin: 6px 2px 0; color: var(--muted); font-size: 13px; }
+.vision-panel { border-top: 1px solid var(--line); padding-top: 8px; }
+.vision-panel summary { color: var(--text); font-weight: 600; cursor: pointer; padding: 8px 0; }
+.vision-panel[open] { display: grid; gap: 14px; }
+.vision-config, .zone-manager, .zone-editor { display: grid; gap: 10px; }
+.vision-config { padding-top: 4px; }
+.vision-config label, .vision-fields label, .new-zone label { display: grid; gap: 4px; color: var(--muted); font-size: 13px; }
+.vision-config label.check, .vision-fields label.check { display: flex; align-items: center; color: var(--text); }
+.check input { min-height: auto; width: 18px; height: 18px; }
+.vision-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vision-fields input { width: 100%; }
+.zone-manager { border-top: 1px solid var(--line); padding-top: 12px; }
+.zone-manager h3, .zone-editor h3 { margin: 0; font-size: 15px; }
+.vision-references { display: grid; gap: 6px; }
+.reference-row { display: grid; gap: 6px; padding: 8px; background: var(--bg); border-radius: var(--radius); font-size: 12px; }
+.reference-row button { width: 100%; }
+.zone-card { display: grid; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.zone-card > div:first-child { display: grid; gap: 2px; }
+.zone-card .row button { flex: 1; min-height: 36px; }
+button.danger { color: #ff8c86; }
+.new-zone { align-items: end; }
+.new-zone label { flex: 1; }
+.new-zone input { width: 100%; }
+.zone-editor { border-top: 1px solid var(--line); padding-top: 12px; }
+.zone-editor[hidden] { display: none; }
+#zone-canvas { display: block; width: 100%; height: auto; max-height: 65vh; background: #000; border: 1px solid var(--line); border-radius: var(--radius); cursor: crosshair; touch-action: none; }
+.vision-toast { border-color: #ffb52e; }
+
+.vision-history { max-width: 1000px; margin: 0 auto; }
+.vision-history h1 { margin: 0; font-size: 20px; }
+.vision-event-list { display: grid; gap: 8px; }
+.vision-event-card { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+.vision-event-body { display: grid; align-content: center; gap: 3px; }
+.snapshot-button { padding: 0; width: 160px; height: 90px; overflow: hidden; background: #000; }
+.snapshot-button img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.snapshot-empty { width: 160px; height: 90px; display: grid; place-items: center; background: var(--bg); color: var(--muted); border-radius: var(--radius); }
+#vision-snapshot-dialog { width: min(92vw, 1100px); padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); }
+#vision-snapshot-dialog::backdrop { background: rgba(0, 0, 0, .8); }
+#vision-snapshot-dialog button { display: block; margin: 0 0 8px auto; }
+#vision-snapshot-dialog img { display: block; max-width: 100%; max-height: 82vh; margin: auto; }
 @media (max-width: 760px) {
   .recordings { grid-template-columns: 1fr; }
   .main-nav { gap: 8px; }
+  .vision-event-card { grid-template-columns: 112px minmax(0, 1fr); gap: 8px; }
+  .snapshot-button, .snapshot-empty { width: 112px; height: 72px; }
+}
+@media (max-width: 400px) {
+  .bar { padding: 8px; }
+  .main-nav { order: 3; width: 100%; justify-content: space-between; }
+  .vision-fields { grid-template-columns: 1fr; }
+  .vision-event-card { grid-template-columns: 96px minmax(0, 1fr); }
+  .snapshot-button, .snapshot-empty { width: 96px; height: 64px; }
 }

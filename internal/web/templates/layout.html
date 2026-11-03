@@ -15,7 +15,7 @@
 {{if .User}}
 <header class="bar">
   <a class="brand" href="/">open-nvr</a>
-  <nav class="main-nav"><a href="/">Directo</a><a href="/recordings">Grabaciones</a><a href="/settings">Ajustes</a></nav>
+  <nav class="main-nav"><a href="/">Directo</a><a href="/recordings">Grabaciones</a>{{if .Vision}}<a href="/vision/events">Detecciones</a>{{end}}<a href="/settings">Ajustes</a></nav>
   <div id="status" hx-get="/api/health" hx-trigger="load, every 15s" hx-swap="innerHTML"></div>
   <form method="post" action="/logout">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">

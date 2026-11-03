@@ -71,15 +71,28 @@ type Dispatcher struct {
 	Bus     *Bus
 	History *History
 	Sinks   []Sink
+	OnEvent func(vision.Event)
 }
 
 // Run procesa eventos hasta que termine el contexto.
 func (d *Dispatcher) Run(ctx context.Context) {
+	d.RunReady(ctx, nil)
+}
+
+// RunReady avisa cuando la suscripción ya está lista para no perder eventos
+// durante el arranque.
+func (d *Dispatcher) RunReady(ctx context.Context, ready chan<- struct{}) {
 	if d.Bus == nil {
+		if ready != nil {
+			close(ready)
+		}
 		return
 	}
 	events, unsubscribe := d.Bus.Subscribe(64)
 	defer unsubscribe()
+	if ready != nil {
+		close(ready)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -96,6 +109,9 @@ func (d *Dispatcher) Run(ctx context.Context) {
 				} else {
 					ev = saved
 				}
+			}
+			if d.OnEvent != nil {
+				d.OnEvent(ev)
 			}
 			for _, sink := range d.Sinks {
 				go d.send(ctx, sink, ev)

@@ -35,9 +35,17 @@ const (
 
 // Pose es la posición que el motor puede afirmar sobre la cámara.
 type Pose struct {
-	Preset    int
-	Verified  bool
-	Displaced bool
+	Preset    int  `json:"preset"`
+	Verified  bool `json:"verified"`
+	Displaced bool `json:"displaced"`
+}
+
+// Snapshot devuelve el estado observable y el objetivo actual del motor.
+func (e *Engine) Snapshot() (State, Pose, int) {
+	e.init()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.state, e.pose, e.targetID
 }
 
 // PTZ contiene únicamente las operaciones de cámara que usa el motor.

@@ -38,6 +38,7 @@ func (s *server) ptzStart(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s.manualVision(ch)
 	cmd, ok := nvr.ValidPTZCommand(r.PostFormValue("cmd"))
 	speed, err := strconv.Atoi(r.PostFormValue("speed"))
 	if !ok || err != nil || speed < 1 || speed > 10 {
@@ -58,6 +59,7 @@ func (s *server) ptzKeepalive(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s.manualVision(ch)
 	if !s.d.Cameras.PTZKeepalive(ch) {
 		http.Error(w, "Sin movimiento activo", http.StatusConflict)
 		return
@@ -71,6 +73,7 @@ func (s *server) ptzStop(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s.manualVision(ch)
 	if err := s.d.Cameras.PTZStop(r.Context(), ch); err != nil {
 		code, msg := nvrError(err)
 		http.Error(w, msg, code)
@@ -111,6 +114,7 @@ func (s *server) ptzPreset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Preset no válido (1–256)", http.StatusBadRequest)
 		return
 	}
+	s.manualVision(ch)
 	// La UI numera desde 1 y el NVR desde 0.
 	err = s.d.Cameras.Preset(r.Context(), ch, action, idx-1)
 	s.result(w, r, err, fmt.Sprintf(presetDone[action], idx))
@@ -143,4 +147,10 @@ func (s *server) ptzSwitch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.result(w, r, err, label)
+}
+
+func (s *server) manualVision(ch int) {
+	if s.d.Vision != nil {
+		s.d.Vision.Manual(ch)
+	}
 }

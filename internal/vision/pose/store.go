@@ -15,6 +15,12 @@ type RefStore struct {
 	Dir string
 }
 
+// Exists indica si existe la referencia sin cargarla en memoria.
+func (s *RefStore) Exists(cam, preset int, mode Mode) bool {
+	_, err := os.Stat(s.path(cam, preset, mode))
+	return err == nil
+}
+
 // Save guarda una referencia mediante reemplazo atómico.
 func (s *RefStore) Save(cam, preset int, mode Mode, g Gray) error {
 	if err := validGray(g); err != nil {

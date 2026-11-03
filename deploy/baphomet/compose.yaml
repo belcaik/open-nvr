@@ -216,14 +216,17 @@ services:
       NVR_PASS_FILE: /run/secrets/nvr_pass
       WEB_PASSWORD_HASH_FILE: /run/secrets/web_password_hash
       WEB_SESSION_KEY_FILE: /run/secrets/web_session_key
+      NTFY_TOKEN_FILE: /run/secrets/ntfy_token
       GO2RTC_CONFIG: /config/go2rtc.yaml
       VISION_DETECT_URL: ws://127.0.0.1:8556/detections
     secrets:
       - nvr_pass
+      - ntfy_token
       - web_password_hash
       - web_session_key
     volumes:
       - go2rtc_config:/config
+      - vision_data:/data
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -278,6 +281,7 @@ secrets:
 volumes:
   nvr_watch_data:
   egress_watch_data:
+  vision_data:
   ulogd_logs:
   dnsmasq_logs:
   ntfy_cache:
