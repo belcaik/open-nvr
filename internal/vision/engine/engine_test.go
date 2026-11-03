@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/camera"
+	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/nvr"
 	"github.com/belcaik/open-nvr/internal/vision"
 )
@@ -247,14 +249,14 @@ func TestLimitePanPermiteVolverEnSentidoContrario(t *testing.T) {
 	}
 }
 
-func TestIgnoraTresFramesTrasPulso(t *testing.T) {
+func TestIgnoraDosFramesTrasPulso(t *testing.T) {
 	cfg := baseConfig()
 	e, ptz, _ := newTestEngine(&cfg)
 	left := frame(track(1, .9, .1, .45, .2, .65))
 	for i := 0; i < 3; i++ {
 		_ = e.processFrame(context.Background(), left)
 	}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		_ = e.processFrame(context.Background(), left)
 		starts, _, _ := ptz.snapshot()
 		if len(starts) != 1 {
@@ -264,7 +266,7 @@ func TestIgnoraTresFramesTrasPulso(t *testing.T) {
 	_ = e.processFrame(context.Background(), left)
 	starts, _, _ := ptz.snapshot()
 	if len(starts) != 2 {
-		t.Fatalf("cuarto frame: starts = %v", starts)
+		t.Fatalf("tercer frame: starts = %v", starts)
 	}
 }
 
@@ -539,7 +541,7 @@ func TestManualAbortaPulsoPausaYLuegoVuelve(t *testing.T) {
 	e, ptz, clock := newTestEngine(&cfg)
 	ptz.started = make(chan struct{}, 1)
 	e.Clock.Sleep = func(ctx context.Context, d time.Duration) error {
-		if d == pulseDuration {
+		if d >= minPulseDuration && d <= maxPulseDuration {
 			<-ctx.Done()
 			return ctx.Err()
 		}
@@ -619,6 +621,153 @@ func TestDesactivarSeguimientoSeAplicaEnSiguienteFrame(t *testing.T) {
 	starts, _, presets := ptz.snapshot()
 	if len(starts) != 1 || len(presets) != 0 {
 		t.Fatalf("starts=%v presets=%v", starts, presets)
+	}
+}
+
+func TestCambioDeIDTrasPulsoRecuperaObjetivoSinVolverAlPreset(t *testing.T) {
+	cfg := baseConfig()
+	e, ptz, _ := newTestEngine(&cfg)
+	left := frame(track(10, .9, .10, .45, .20, .65))
+	for i := 0; i < 3; i++ {
+		if err := e.processFrame(context.Background(), left); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := e.processFrame(context.Background(), frame(track(20, .8, .40, .45, .50, .65))); err != nil {
+		t.Fatal(err)
+	}
+	state, _, targetID := e.Snapshot()
+	_, _, presets := ptz.snapshot()
+	if state != Tracking || targetID != 20 || len(presets) != 0 {
+		t.Fatalf("state=%s target=%d presets=%v", state, targetID, presets)
+	}
+}
+
+func TestTrackAMasDeCeroComaCuatroNoSeAdopta(t *testing.T) {
+	cfg := baseConfig()
+	e, _, _ := newTestEngine(&cfg)
+	left := frame(track(10, .9, .10, .45, .20, .65))
+	for i := 0; i < 3; i++ {
+		_ = e.processFrame(context.Background(), left)
+	}
+	_ = e.processFrame(context.Background(), frame(track(20, .9, .51, .45, .61, .65)))
+	state, _, targetID := e.Snapshot()
+	if state != Tracking || targetID != 10 {
+		t.Fatalf("state=%s target=%d; adoptó un track lejano", state, targetID)
+	}
+}
+
+func TestObjetivoPerdidoBuscaQuitandoZoomYPaneandoCuatroVeces(t *testing.T) {
+	cfg := baseConfig()
+	e, ptz, clock := newTestEngine(&cfg)
+	left := frame(track(1, .9, .10, .45, .20, .65))
+	for i := 0; i < 3; i++ {
+		_ = e.processFrame(context.Background(), left)
+	}
+	e.mu.Lock()
+	e.zoomCount = 2
+	e.mu.Unlock()
+	clock.advance(searchAfter)
+	_ = e.processFrame(context.Background(), frame())
+	for pulse := 0; pulse < 6; pulse++ {
+		_ = e.processFrame(context.Background(), frame())
+		_ = e.processFrame(context.Background(), frame())
+		_ = e.processFrame(context.Background(), frame())
+	}
+
+	state, _, _ := e.Snapshot()
+	starts, _, _ := ptz.snapshot()
+	want := []nvr.PTZCommand{nvr.TurnLeft, nvr.ZoomOut, nvr.ZoomOut, nvr.TurnLeft, nvr.TurnLeft, nvr.TurnLeft, nvr.TurnLeft}
+	if state != Searching || len(starts) != len(want) {
+		t.Fatalf("state=%s starts=%v; quería %v", state, starts, want)
+	}
+	for i := range want {
+		if starts[i] != want[i] {
+			t.Fatalf("starts=%v; quería %v", starts, want)
+		}
+	}
+}
+
+func TestPersonaConfirmadaDuranteBusquedaRetomaTracking(t *testing.T) {
+	cfg := baseConfig()
+	e, _, clock := newTestEngine(&cfg)
+	left := frame(track(1, .9, .10, .45, .20, .65))
+	for i := 0; i < 3; i++ {
+		_ = e.processFrame(context.Background(), left)
+	}
+	clock.advance(searchAfter)
+	_ = e.processFrame(context.Background(), frame())
+	appears := frame(track(44, .8, .70, .45, .80, .65))
+	for i := 0; i < 3; i++ {
+		_ = e.processFrame(context.Background(), appears)
+	}
+	state, _, targetID := e.Snapshot()
+	if state != Tracking || targetID != 44 {
+		t.Fatalf("state=%s target=%d", state, targetID)
+	}
+}
+
+func TestBusquedaSinExitoVuelveAlPresetAlCumplirReturnAfter(t *testing.T) {
+	cfg := baseConfig()
+	e, ptz, clock := newTestEngine(&cfg)
+	for i := 0; i < 3; i++ {
+		_ = e.processFrame(context.Background(), frame(track(7, .9, .10, .45, .20, .65)))
+	}
+	clock.advance(searchAfter)
+	_ = e.processFrame(context.Background(), frame())
+	clock.advance(cfg.Tracking.ReturnAfter - searchAfter)
+	_ = e.processFrame(context.Background(), frame())
+	state, _, _ := e.Snapshot()
+	_, _, presets := ptz.snapshot()
+	if state != AtPreset || len(presets) != 1 || presets[0] != cfg.HomePreset-1 {
+		t.Fatalf("state=%s presets=%v", state, presets)
+	}
+}
+
+func TestDuracionPulsoProporcional(t *testing.T) {
+	tests := []struct {
+		name   string
+		center float64
+		want   time.Duration
+	}{
+		{"150 ms en borde de zona muerta", deadZoneMin - 1e-12, minPulseDuration},
+		{"500 ms desde distancia 0,35", deadZoneMax + .35, maxPulseDuration},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseConfig()
+			e, _, _ := newTestEngine(&cfg)
+			var sleeps []time.Duration
+			e.Clock.Sleep = func(_ context.Context, d time.Duration) error {
+				sleeps = append(sleeps, d)
+				return nil
+			}
+			box := vision.Box{tt.center - .05, .45, tt.center + .05, .65}
+			for i := 0; i < 3; i++ {
+				_ = e.processFrame(context.Background(), frame(vision.Track{ID: 1, Conf: .9, Box: box}))
+			}
+			if len(sleeps) != 1 || sleeps[0] != tt.want {
+				t.Fatalf("esperas=%v; quería [%s]", sleeps, tt.want)
+			}
+		})
+	}
+}
+
+func TestTopeDePanRegistraUnaSolaLinea(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Tracking.MaxPanPulses = 1
+	e, _, _ := newTestEngine(&cfg)
+	var logs bytes.Buffer
+	oldOut := logx.Out
+	logx.Out = &logs
+	t.Cleanup(func() { logx.Out = oldOut })
+	left := frame(track(1, .9, .10, .45, .20, .65))
+	for i := 0; i < 8; i++ {
+		_ = e.processFrame(context.Background(), left)
+	}
+	if got := strings.Count(logs.String(), "tope de pan alcanzado"); got != 1 {
+		t.Fatalf("líneas de tope=%d, log=%q", got, logs.String())
 	}
 }
 
