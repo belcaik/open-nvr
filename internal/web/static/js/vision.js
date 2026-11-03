@@ -14,7 +14,7 @@ let frame = { tracks: [], target: 0 };
 let lastFrameAt = 0;
 
 const stateLabels = {
-  at_preset: "en preset", tracking: "siguiendo", returning: "volviendo", paused: "pausado",
+  at_preset: "en preset", tracking: "siguiendo", searching: "buscando", returning: "volviendo", paused: "pausado",
 };
 const detectorLabels = {
   ok: "operativo", starting: "iniciando", reconnecting: "reconectando", down: "no disponible",
@@ -105,6 +105,11 @@ function updateState() {
     stateLine.textContent = "Motor: conectando · pose sin datos · detector: conectando";
     return;
   }
+  // Una cámara caída no sigue ni recibe órdenes: la línea entera lo dice.
+  if (motor.camera === "offline") {
+    stateLine.textContent = "cámara desconectada";
+    return;
+  }
   const pose = motor.pose;
   let poseText = "pose cualquiera";
   if (pose && Number(pose.preset) > 0) {
@@ -170,6 +175,7 @@ function setFormValues() {
   form.elements.max_pan_pulses.value = tracking.max_pan_pulses ?? 20;
   form.elements.max_tilt_pulses.value = tracking.max_tilt_pulses ?? 10;
   form.elements.max_zoom_pulses.value = tracking.max_zoom_pulses ?? 10;
+  applyProposedPreset();
 }
 
 function configFromForm() {
@@ -290,60 +296,154 @@ function renderZones() {
   if (!config.zones?.length) container.append(el("p", "muted", "No hay zonas configuradas."));
 }
 
+const newZonePreset = document.querySelector("#new-zone-preset");
+let presetTouched = false;
+newZonePreset?.addEventListener("input", () => { presetTouched = true; });
+
+// El preset propuesto es el de inicio, salvo que ya se haya elegido otro.
+function applyProposedPreset() {
+  if (!newZonePreset || !config || presetTouched) return;
+  newZonePreset.value = config.home_preset ?? 1;
+}
+
 const editor = {
   root: document.querySelector("#zone-editor"),
+  stage: document.querySelector(".zone-editor-stage"),
   canvas: document.querySelector("#zone-canvas"),
   image: null,
   zoneID: null,
   preset: 0,
   points: [],
+  baseline: "[]",
   closed: false,
   drag: -1,
   moved: false,
   suppressClick: false,
   hover: null,
+  hoverIndex: -1,
 };
+
+function pointsKey(points) {
+  return JSON.stringify((points || []).map((point) => [
+    Math.round(point.x * 10000) / 10000,
+    Math.round(point.y * 10000) / 10000,
+  ]));
+}
+
+function isDirty() {
+  return pointsKey(editor.points) !== editor.baseline;
+}
 
 function editorRect() {
   return geom.letterboxRect(editor.canvas.width, editor.canvas.height,
-    editor.image?.width || 1, editor.image?.height || 1);
+    editor.image?.naturalWidth || editor.image?.width || 1,
+    editor.image?.naturalHeight || editor.image?.height || 1);
 }
 
 function editorPoint(event) {
   const bounds = editor.canvas.getBoundingClientRect();
   return {
-    x: (event.clientX - bounds.left) * editor.canvas.width / bounds.width,
-    y: (event.clientY - bounds.top) * editor.canvas.height / bounds.height,
+    x: (event.clientX - bounds.left) * editor.canvas.width / (bounds.width || 1),
+    y: (event.clientY - bounds.top) * editor.canvas.height / (bounds.height || 1),
   };
+}
+
+function pointRadius() {
+  const display = editor.canvas.getBoundingClientRect().width;
+  return geom.captureRadius(12, editor.canvas.width, display);
+}
+
+function placedPoints() {
+  const rect = editorRect();
+  return editor.points.map((point) => geom.denormalizePoint(point, rect));
+}
+
+function vertexAt(point) {
+  return geom.nearestPoint(placedPoints(), point, pointRadius());
 }
 
 function drawEditor() {
   if (!editor.image) return;
   const ctx = editor.canvas.getContext("2d");
-  ctx.clearRect(0, 0, editor.canvas.width, editor.canvas.height);
-  ctx.drawImage(editor.image, 0, 0, editor.canvas.width, editor.canvas.height);
+  const width = editor.canvas.width;
+  const height = editor.canvas.height;
   const rect = editorRect();
-  const points = editor.points.map((point) => geom.denormalizePoint(point, rect));
-  if (points.length) {
+  const unit = geom.captureRadius(1, width, editor.canvas.getBoundingClientRect().width || width);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(editor.image, rect.x, rect.y, rect.width, rect.height);
+  const points = placedPoints();
+  if (!points.length) return;
+  ctx.beginPath();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  points.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y));
+  if (editor.closed) ctx.closePath();
+  const hoverNormalized = editor.hover && geom.normalizePoint(editor.hover, rect);
+  const inside = editor.closed && hoverNormalized && geom.pointInPolygon(hoverNormalized, editor.points);
+  ctx.fillStyle = inside ? "rgba(255, 181, 46, .24)" : "rgba(79, 156, 240, .18)";
+  ctx.strokeStyle = "#4f9cf0";
+  ctx.lineWidth = Math.max(2 * unit, 1);
+  if (editor.closed) ctx.fill();
+  ctx.stroke();
+  const hot = editor.drag >= 0 ? editor.drag : editor.hoverIndex;
+  const radius = 12 * unit;
+  const drawVertex = (point, active) => {
     ctx.beginPath();
-    points.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y));
-    if (editor.closed) ctx.closePath();
-    const hoverNormalized = editor.hover && geom.normalizePoint(editor.hover, rect);
-    const hovered = editor.closed && hoverNormalized && geom.pointInPolygon(hoverNormalized, editor.points);
-    ctx.fillStyle = hovered ? "rgba(255, 181, 46, .24)" : "rgba(79, 156, 240, .18)";
-    ctx.strokeStyle = "#4f9cf0";
-    ctx.lineWidth = Math.max(2, editor.canvas.width / 500);
-    if (editor.closed) ctx.fill();
+    ctx.arc(point.x, point.y, active ? radius * 1.35 : radius, 0, Math.PI * 2);
+    ctx.fillStyle = active ? "#fff4d2" : "#ffb52e";
+    ctx.fill();
+    ctx.lineWidth = Math.max(2 * unit, 1);
+    ctx.strokeStyle = active ? "#ffb52e" : "#111315";
     ctx.stroke();
-    for (const point of points) {
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, Math.max(5, editor.canvas.width / 180), 0, Math.PI * 2);
-      ctx.fillStyle = "#ffb52e";
-      ctx.fill();
-      ctx.strokeStyle = "#111315";
-      ctx.stroke();
-    }
+  };
+  points.forEach((point, index) => { if (index !== hot) drawVertex(point, false); });
+  if (hot >= 0 && points[hot]) drawVertex(points[hot], true);
+}
+
+function fitEditor() {
+  if (!editor.root?.open || !editor.canvas) return;
+  const bounds = editor.canvas.getBoundingClientRect();
+  if (bounds.width < 2 || bounds.height < 2) return;
+  const ratio = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(bounds.width * ratio));
+  const height = Math.max(1, Math.round(bounds.height * ratio));
+  if (editor.canvas.width !== width || editor.canvas.height !== height) {
+    editor.canvas.width = width;
+    editor.canvas.height = height;
   }
+  if (editor.image) drawEditor();
+}
+
+function refreshHelp() {
+  const help = document.querySelector("#zone-help");
+  if (!help || !editor.image) return;
+  const preset = editor.preset ? `preset ${editor.preset}` : "preset cualquiera";
+  help.textContent = `${preset} · ${editor.points.length} puntos`;
+}
+
+function hideConfirm() {
+  const box = document.querySelector("#zone-confirm");
+  if (box) box.hidden = true;
+}
+
+function showConfirm() {
+  const box = document.querySelector("#zone-confirm");
+  if (!box) return;
+  box.hidden = false;
+  box.scrollIntoView({ block: "nearest" });
+  document.querySelector("#zone-confirm-stay")?.focus();
+}
+
+function requestClose() {
+  if (isDirty()) { showConfirm(); return; }
+  editor.root?.close();
+}
+
+function setCursor(grabbing) {
+  if (!editor.canvas) return;
+  editor.canvas.style.cursor = grabbing ? "grabbing" : (editor.hoverIndex >= 0 ? "grab" : "crosshair");
 }
 
 async function loadSnapshot() {
@@ -356,8 +456,6 @@ async function loadSnapshot() {
     image.src = url;
     await image.decode();
     editor.image = image;
-    editor.canvas.width = image.naturalWidth;
-    editor.canvas.height = image.naturalHeight;
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -365,32 +463,38 @@ async function loadSnapshot() {
 
 async function openEditor(zone = null) {
   const error = document.querySelector("#zone-error");
-  error.textContent = "";
-  editor.root.hidden = false;
-  editor.root.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  editor.zoneID = zone?.id || null;
-  editor.preset = Number(zone?.pose?.preset ?? document.querySelector("#new-zone-preset").value);
-  if (!Number.isInteger(editor.preset) || editor.preset < 0 || editor.preset > 256) {
-    error.textContent = "El preset debe ser un número entre 0 y 256.";
-    editor.root.hidden = true;
+  const preset = Number(zone?.pose?.preset ?? newZonePreset?.value ?? config?.home_preset ?? 0);
+  if (!Number.isInteger(preset) || preset < 0 || preset > 256) {
+    toast("El preset debe ser un número entre 0 y 256.");
     return;
   }
+  error.textContent = "";
+  hideConfirm();
+  editor.zoneID = zone?.id || null;
+  editor.preset = preset;
   editor.points = (zone?.points || []).map((point) => ({ x: point.x, y: point.y }));
+  editor.baseline = pointsKey(editor.points);
   editor.closed = editor.points.length >= 3;
+  editor.drag = -1;
+  editor.hover = null;
+  editor.hoverIndex = -1;
   editor.image = null;
-  editor.canvas.getContext("2d").clearRect(0, 0, editor.canvas.width, editor.canvas.height);
   document.querySelector("#zone-editor-title").textContent = zone ? "Editar zona" : "Nueva zona";
   document.querySelector("#zone-name").value = zone?.name || "";
   document.querySelector("#zone-alert").checked = zone?.alert ?? true;
   document.querySelector("#zone-zoom").checked = zone?.zoom ?? true;
   document.querySelector("#zone-help").textContent = "Preparando la imagen…";
+  if (editor.canvas) {
+    const ctx = editor.canvas.getContext("2d");
+    ctx.clearRect(0, 0, editor.canvas.width, editor.canvas.height);
+  }
+  if (editor.root && !editor.root.open) editor.root.showModal();
   try {
-    if (editor.preset >= 1) {
-      await updateReference(editor.preset);
-    }
+    if (editor.preset >= 1) await updateReference(editor.preset);
     await loadSnapshot();
-    document.querySelector("#zone-help").textContent = `Preset ${editor.preset || "cualquiera"} · ${editor.points.length} puntos`;
-    drawEditor();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    fitEditor();
+    refreshHelp();
   } catch (err) {
     error.textContent = err.message;
   }
@@ -412,43 +516,70 @@ document.querySelector("#zone-close")?.addEventListener("click", closePolygon);
 document.querySelector("#zone-undo")?.addEventListener("click", () => {
   editor.points.pop();
   editor.closed = false;
-  document.querySelector("#zone-help").textContent = `${editor.points.length} puntos`;
+  document.querySelector("#zone-error").textContent = "";
+  refreshHelp();
   drawEditor();
 });
-document.querySelector("#zone-cancel")?.addEventListener("click", () => { editor.root.hidden = true; });
+document.querySelector("#zone-cancel")?.addEventListener("click", requestClose);
+document.querySelector("#zone-confirm-stay")?.addEventListener("click", hideConfirm);
+document.querySelector("#zone-confirm-close")?.addEventListener("click", () => editor.root?.close());
+editor.root?.addEventListener("cancel", (event) => {
+  if (!isDirty()) return;
+  event.preventDefault();
+  showConfirm();
+});
+editor.root?.addEventListener("close", () => {
+  editor.drag = -1;
+  editor.hover = null;
+  editor.hoverIndex = -1;
+  hideConfirm();
+  setCursor(false);
+});
 
 editor.canvas?.addEventListener("pointerdown", (event) => {
   if (!editor.image) return;
+  hideConfirm();
   const point = editorPoint(event);
-  const rect = editorRect();
-  const scale = editor.canvas.width / editor.canvas.getBoundingClientRect().width;
-  editor.drag = editor.points.findIndex((candidate) => {
-    const actual = geom.denormalizePoint(candidate, rect);
-    return Math.hypot(actual.x - point.x, actual.y - point.y) <= 14 * scale;
-  });
+  editor.drag = vertexAt(point);
+  editor.hoverIndex = editor.drag;
   editor.moved = false;
-  if (editor.drag >= 0) editor.canvas.setPointerCapture(event.pointerId);
+  if (editor.drag >= 0) {
+    editor.canvas.setPointerCapture(event.pointerId);
+    setCursor(true);
+  }
 });
 
 editor.canvas?.addEventListener("pointermove", (event) => {
   const point = editorPoint(event);
   editor.hover = point;
   if (editor.drag >= 0) {
-    editor.points[editor.drag] = geom.normalizePoint(point, editorRect());
+    editor.points = geom.dragPoint(editor.points, editor.drag, point, editorRect());
     editor.moved = true;
+    editor.hoverIndex = editor.drag;
+    setCursor(true);
+  } else {
+    editor.hoverIndex = vertexAt(point);
+    setCursor(false);
   }
   drawEditor();
 });
 
 editor.canvas?.addEventListener("pointerleave", () => {
   editor.hover = null;
-  if (editor.drag < 0) drawEditor();
+  if (editor.drag < 0) {
+    editor.hoverIndex = -1;
+    setCursor(false);
+    drawEditor();
+  }
 });
 
 editor.canvas?.addEventListener("pointerup", (event) => {
   if (editor.drag >= 0 && editor.canvas.hasPointerCapture(event.pointerId)) editor.canvas.releasePointerCapture(event.pointerId);
   editor.suppressClick = editor.moved || editor.drag >= 0;
   editor.drag = -1;
+  editor.hoverIndex = vertexAt(editorPoint(event));
+  setCursor(false);
+  drawEditor();
 });
 
 editor.canvas?.addEventListener("click", (event) => {
@@ -459,7 +590,8 @@ editor.canvas?.addEventListener("click", (event) => {
     return;
   }
   editor.points.push(geom.normalizePoint(editorPoint(event), editorRect()));
-  document.querySelector("#zone-help").textContent = `${editor.points.length} puntos`;
+  document.querySelector("#zone-error").textContent = "";
+  refreshHelp();
   drawEditor();
 });
 
@@ -467,6 +599,8 @@ editor.canvas?.addEventListener("dblclick", (event) => {
   event.preventDefault();
   closePolygon();
 });
+
+if (editor.stage) new ResizeObserver(() => fitEditor()).observe(editor.stage);
 
 function zoneID(name) {
   const base = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -498,7 +632,7 @@ document.querySelector("#zone-save")?.addEventListener("click", async () => {
   if (index >= 0) zones[index] = zone; else zones.push(zone);
   try {
     await putConfig({ ...configFromForm(), zones });
-    editor.root.hidden = true;
+    editor.root?.close();
     toast("Zona guardada");
   } catch (err) { error.textContent = err.message; }
 });
@@ -517,7 +651,7 @@ async function init() {
 }
 
 new ResizeObserver(fitOverlay).observe(tile);
-window.addEventListener("resize", fitOverlay);
+window.addEventListener("resize", () => { fitOverlay(); fitEditor(); });
 setInterval(() => {
   if (lastFrameAt && Date.now() - lastFrameAt > 2000 && frame.tracks?.length) {
     frame = { tracks: [], target: 0 };
