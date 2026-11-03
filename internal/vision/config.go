@@ -9,12 +9,17 @@ import (
 	"github.com/belcaik/open-nvr/internal/statefile"
 )
 
-// TrackingConfig configura el seguimiento PTZ futuro.
+// TrackingConfig configura el seguimiento PTZ. Los Max*Pulses son límites
+// por software, en pulsos netos desde el preset: la cámara pierde la
+// referencia si empuja contra sus topes, así que nunca se llega a ellos.
 type TrackingConfig struct {
 	Enabled          bool          `json:"enabled"`
 	Speed            int           `json:"speed"`
 	ZoomTargetHeight float64       `json:"zoom_target_height"`
 	ReturnAfter      time.Duration `json:"return_after"`
+	MaxPanPulses     int           `json:"max_pan_pulses"`
+	MaxTiltPulses    int           `json:"max_tilt_pulses"`
+	MaxZoomPulses    int           `json:"max_zoom_pulses"`
 }
 
 // CameraConfig es la configuración de visión persistida para una cámara.
@@ -89,6 +94,11 @@ func validateConfig(cfg CameraConfig) error {
 	}
 	if tracking.ReturnAfter < 5*time.Second {
 		return fmt.Errorf("retorno de tracking inválido: debe ser al menos 5s")
+	}
+	for name, n := range map[string]int{"pan": tracking.MaxPanPulses, "tilt": tracking.MaxTiltPulses, "zoom": tracking.MaxZoomPulses} {
+		if n < 1 || n > 100 {
+			return fmt.Errorf("límite de pulsos de %s inválido: debe estar entre 1 y 100", name)
+		}
 	}
 
 	ids := make(map[string]struct{}, len(cfg.Zones))

@@ -16,7 +16,7 @@ func validCameraConfig() CameraConfig {
 			ID: "door", Name: "Puerta", Pose: Pose{Preset: 2}, Alert: true,
 			Points: []Point{{X: 0.1, Y: 0.1}, {X: 0.9, Y: 0.1}, {X: 0.5, Y: 0.9}},
 		}},
-		Tracking:   TrackingConfig{Enabled: true, Speed: 5, ZoomTargetHeight: 0.5, ReturnAfter: 10 * time.Second},
+		Tracking:   TrackingConfig{Enabled: true, Speed: 5, ZoomTargetHeight: 0.5, ReturnAfter: 10 * time.Second, MaxPanPulses: 20, MaxTiltPulses: 10, MaxZoomPulses: 10},
 		HomePreset: 1,
 	}
 }
