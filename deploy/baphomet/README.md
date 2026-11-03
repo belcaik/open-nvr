@@ -331,11 +331,12 @@ anterior de Caddy.
 `opennvr-detect` lee el substream de go2rtc en `127.0.0.1:8554` y publica los
 tracks en `127.0.0.1:8556`, que `opennvr-web` consume con `VISION_DETECT_URL`.
 El ONNX no entra en la imagen: se exporta con `bench.py export --e2e` a 416 px
-y tiene licencia AGPL, como los pesos de Ultralytics. Copiarlo al volumen
-`opennvr-detect-models` antes de levantar el servicio:
+y tiene licencia AGPL, como los pesos de Ultralytics. El detector usa
+`yolo26s.onnx` por defecto. Copiarlo al volumen `opennvr-detect-models` antes de
+levantar el servicio:
 
 ```bash
-sudo podman volume create opennvr-detect-models && sudo podman run --rm -v opennvr-detect-models:/m -v ./yolo26n.onnx:/src.onnx:ro docker.io/library/busybox cp /src.onnx /m/yolo26n.onnx
+sudo podman volume create opennvr-detect-models && sudo podman run --rm -v opennvr-detect-models:/m -v ./yolo26s.onnx:/src.onnx:ro docker.io/library/busybox cp /src.onnx /m/yolo26s.onnx
 ```
 
 ## Paso separado: cambiar la puerta de enlace del NVR
