@@ -2,9 +2,13 @@
 {{with .Data.Error}}<p class="notice" role="alert">{{.}}</p>{{end}}
 {{$ch := .Data.Tile.Channel}}
 <section class="camera">
-  <div class="tile" data-cam="{{$ch}}" data-quality="main">
-    <span class="name"><span class="dot {{if .Data.Tile.Online}}ok{{else if .Data.Tile.Known}}bad{{end}}"></span>Cámara {{$ch}}{{with .Data.Tile.LoginStatus}} · {{.}}{{end}}</span>
-    <div class="video"></div>
+  <div class="camera-view">
+    <div class="tile" data-cam="{{$ch}}" data-quality="main">
+      <span class="name"><span class="dot {{if .Data.Tile.Online}}ok{{else if .Data.Tile.Known}}bad{{end}}"></span>Cámara {{$ch}}{{with .Data.Tile.LoginStatus}} · {{.}}{{end}}</span>
+      <div class="video"></div>
+      {{if .Vision}}<canvas id="vision-overlay" aria-label="Detecciones y zonas activas"></canvas>{{end}}
+    </div>
+    {{if .Vision}}<p id="vision-state" class="vision-state" aria-live="polite">Motor: conectando · pose sin datos · detector: conectando</p>{{end}}
   </div>
 
   <aside class="panel">
@@ -59,10 +63,63 @@
       <a class="button" href="/">Volver</a>
     </div>
     <output id="ptz-result" aria-live="polite"></output>
+
+    {{if .Vision}}
+    <details class="vision-panel">
+      <summary>Visión</summary>
+      <form id="vision-config" class="vision-config">
+        <label class="check"><input name="enabled" type="checkbox"> Visión activada</label>
+        <label class="check"><input name="tracking_enabled" type="checkbox"> Seguimiento activado</label>
+        <div class="vision-fields">
+          <label>Velocidad <input name="speed" type="number" min="1" max="10" required></label>
+          <label>Altura objetivo (%) <input name="zoom_target_height" type="number" min="10" max="90" required></label>
+          <label>Volver tras (s) <input name="return_after_s" type="number" min="0" required></label>
+          <label>Preset de inicio <input name="home_preset" type="number" min="0" max="256" required></label>
+          <label>Límite pan <input name="max_pan_pulses" type="number" min="0" required></label>
+          <label>Límite tilt <input name="max_tilt_pulses" type="number" min="0" required></label>
+          <label>Límite zoom <input name="max_zoom_pulses" type="number" min="0" required></label>
+        </div>
+        <p id="vision-config-error" class="error" role="alert"></p>
+        <button type="submit">Guardar ajustes</button>
+      </form>
+
+      <section class="zone-manager" aria-labelledby="zones-title">
+        <h3 id="zones-title">Zonas</h3>
+        <div id="vision-references" class="vision-references"></div>
+        <div id="vision-zones"></div>
+        <div class="row new-zone">
+          <label>Preset <input id="new-zone-preset" type="number" min="0" max="256" value="0"></label>
+          <button id="new-zone" type="button">Nueva zona</button>
+        </div>
+      </section>
+
+      <section id="zone-editor" class="zone-editor" hidden>
+        <h3 id="zone-editor-title">Nueva zona</h3>
+        <canvas id="zone-canvas" aria-label="Editor del polígono de la zona"></canvas>
+        <p id="zone-help" class="muted">Pulsa sobre la imagen para añadir entre 3 y 32 puntos.</p>
+        <div class="row">
+          <button id="zone-undo" type="button">Deshacer punto</button>
+          <button id="zone-close" type="button">Cerrar polígono</button>
+        </div>
+        <div class="vision-fields">
+          <label>Nombre <input id="zone-name" maxlength="80" required></label>
+          <label class="check"><input id="zone-alert" type="checkbox"> Alerta</label>
+          <label class="check"><input id="zone-zoom" type="checkbox"> Zoom</label>
+        </div>
+        <p id="zone-error" class="error" role="alert"></p>
+        <div class="row">
+          <button id="zone-save" type="button">Guardar zona</button>
+          <button id="zone-cancel" type="button">Cancelar</button>
+        </div>
+      </section>
+    </details>
+    {{end}}
   </aside>
 </section>
 {{end}}
 {{define "scripts"}}<script type="module" src="{{asset "/static/js/video.js"}}"></script>
 <script type="module" src="{{asset "/static/js/ptz.js"}}"></script>
 <script type="module" src="{{asset "/static/js/boost.js"}}"></script>
+{{if .Vision}}<script src="{{asset "/static/js/vision-geom.js"}}"></script>
+<script type="module" src="{{asset "/static/js/vision.js"}}"></script>{{end}}
 {{if .Data.Talk}}<script type="module" src="{{asset "/static/js/talk.js"}}"></script>{{end}}{{end}}

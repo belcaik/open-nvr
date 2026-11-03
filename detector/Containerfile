@@ -1,0 +1,16 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY requirements.txt ./
+RUN python -m pip install --no-cache-dir -r requirements.txt \
+    && groupadd --system opennvr \
+    && useradd --system --gid opennvr --home-dir /nonexistent opennvr
+
+COPY opennvr_detect ./opennvr_detect
+USER opennvr:opennvr
+
+CMD ["python", "-m", "opennvr_detect"]
+

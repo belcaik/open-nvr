@@ -1,0 +1,29 @@
+{{define "content"}}
+<section class="vision-history" data-vision-history>
+  <div class="panel">
+    <h1>Historial de detecciones</h1>
+    <form id="vision-event-filters" class="log-filters">
+      <label>Cámara <input name="cam" type="number" min="1" inputmode="numeric" placeholder="Todas"></label>
+      <label>Tipo
+        <select name="kind">
+          <option value="">Todos</option>
+          <option value="zone_enter">Entrada en zona</option>
+          <option value="zone_leave">Salida de zona</option>
+          <option value="tracking_start">Inicio de seguimiento</option>
+          <option value="tracking_stop">Fin de seguimiento</option>
+          <option value="camera_displaced">Cámara desplazada</option>
+          <option value="detector_down">Detector no disponible</option>
+        </select>
+      </label>
+      <button type="submit">Filtrar</button>
+    </form>
+    <p id="vision-events-error" class="error" role="alert"></p>
+    <div id="vision-events" class="vision-event-list" aria-live="polite"><p class="muted">Cargando…</p></div>
+  </div>
+  <dialog id="vision-snapshot-dialog">
+    <button type="button" data-close aria-label="Cerrar">Cerrar</button>
+    <img alt="Instantánea ampliada">
+  </dialog>
+</section>
+{{end}}
+{{define "scripts"}}<script type="module" src="{{asset "/static/js/vision-events.js"}}"></script>{{end}}

@@ -8,12 +8,28 @@ import (
 	"io/fs"
 	"net/http"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/auth"
 	"github.com/belcaik/open-nvr/internal/nvr"
 	"github.com/belcaik/open-nvr/internal/talk"
+	"github.com/belcaik/open-nvr/internal/vision"
+	visionapp "github.com/belcaik/open-nvr/internal/vision/app"
+	"github.com/belcaik/open-nvr/internal/vision/events"
+	"github.com/belcaik/open-nvr/internal/vision/pose"
 )
+
+// VisionService es la fachada de visión que necesitan los handlers.
+type VisionService interface {
+	Config(ch int) vision.CameraConfig
+	SetConfig(ch int, cfg vision.CameraConfig) error
+	References(ch int) map[int]visionapp.ReferenceState
+	CaptureReference(ctx context.Context, ch, preset int) (pose.Mode, error)
+	Manual(ch int)
+	Subscribe(ch int) (<-chan visionapp.Update, func())
+	History() *events.History
+}
 
 // CameraService es lo que la web necesita del dominio de cámaras
 // (lo implementa camera.Service).
@@ -45,6 +61,7 @@ type Deps struct {
 	PlaybackSource http.Handler     // fuente opaca para go2rtc; no requiere cookie web
 	Events         EventHub         // nil: sin /api/events
 	Talk           talk.Opener      // nil: sin micrófono P6S
+	Vision         VisionService    // nil: sin rutas ni UI de visión
 	Location       *time.Location   // zona horaria del NVR
 	// AudioState guarda el último audio global aplicado: el NVR relee siempre
 	// sus valores de fábrica (T105). "" no recuerda nada.
@@ -100,8 +117,29 @@ func NewServer(d Deps) http.Handler {
 	if d.Talk != nil {
 		mux.Handle("GET /api/talk/{ch}", authed(s.sameOrigin(s.talk)))
 	}
+	if d.Vision != nil {
+		s.registerVisionRoutes(mux, authed)
+	}
 
-	return securityHeaders(s.privateOnly(mux))
+	root := http.Handler(mux)
+	if d.Vision != nil {
+		root = rejectVisionTraversal(root)
+	}
+	return securityHeaders(s.privateOnly(root))
+}
+
+func rejectVisionTraversal(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/vision/snapshots/") {
+			for _, part := range strings.Split(strings.TrimPrefix(r.URL.Path, "/vision/snapshots/"), "/") {
+				if part == ".." || part == "." {
+					http.NotFound(w, r)
+					return
+				}
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func cacheFor(d time.Duration, h http.Handler) http.Handler {

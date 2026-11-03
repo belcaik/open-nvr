@@ -81,14 +81,15 @@ func parsePages() map[string]*template.Template {
 
 // pageData es lo que reciben todas las plantillas.
 type pageData struct {
-	Title string
-	User  string
-	CSRF  string
-	Data  any
+	Title  string
+	User   string
+	CSRF   string
+	Vision bool // hay detección de personas: enlaces y paneles de visión
+	Data   any
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, status int, page, title string, data any) {
-	pd := pageData{Title: title, Data: data}
+	pd := pageData{Title: title, Data: data, Vision: s.d.Vision != nil}
 	if se := sessionFrom(r); se.ID != "" {
 		pd.User, pd.CSRF = se.User, s.d.Sessions.CSRFToken(se)
 	}

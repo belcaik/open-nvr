@@ -19,3 +19,6 @@ services:
   chrony:
     build:
       context: chrony
+  detector:
+    build:
+      context: ../../detector

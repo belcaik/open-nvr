@@ -173,6 +173,36 @@ services:
       retries: 3
       start_period: 10s
 
+  # Detecta personas en el substream de go2rtc (127.0.0.1:8554) y publica
+  # los tracks por WebSocket en 127.0.0.1:8556. El ONNX va en el volumen.
+  detector:
+    container_name: opennvr-detect
+    image: ghcr.io/belcaik/open-nvr-detect:${OPENNVR_TAG:-latest}
+    network_mode: host
+    environment:
+      DETECT_LISTEN: 127.0.0.1:8556
+      DETECT_MODEL: /models/yolo26n.onnx
+      DETECT_CAMERAS: ${DETECT_CAMERAS:-1=rtsp://127.0.0.1:8554/cam1_sub}
+      DETECT_THREADS: ${DETECT_THREADS:-2}
+    volumes:
+      - detect_models:/models:ro
+    depends_on:
+      - go2rtc
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8556/healthz', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   # Interfaz web: login, directo, PTZ. Red del host para escuchar solo en
   # WEB_LISTEN (192.168.0.8:8095, accesible únicamente desde el propio host
   # según nftables) y llegar a la API de go2rtc por loopback.
@@ -186,13 +216,17 @@ services:
       NVR_PASS_FILE: /run/secrets/nvr_pass
       WEB_PASSWORD_HASH_FILE: /run/secrets/web_password_hash
       WEB_SESSION_KEY_FILE: /run/secrets/web_session_key
+      NTFY_TOKEN_FILE: /run/secrets/ntfy_token
       GO2RTC_CONFIG: /config/go2rtc.yaml
+      VISION_DETECT_URL: ws://127.0.0.1:8556/detections
     secrets:
       - nvr_pass
+      - ntfy_token
       - web_password_hash
       - web_session_key
     volumes:
       - go2rtc_config:/config
+      - vision_data:/data
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -247,8 +281,12 @@ secrets:
 volumes:
   nvr_watch_data:
   egress_watch_data:
+  vision_data:
   ulogd_logs:
   dnsmasq_logs:
   ntfy_cache:
   ntfy_data:
   go2rtc_config:
+  # Nombre fijo: el README lo crea a mano con el ONNX antes de levantar.
+  detect_models:
+    name: opennvr-detect-models
