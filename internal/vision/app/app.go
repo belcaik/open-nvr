@@ -23,6 +23,8 @@ import (
 var (
 	watchdogPeriod       = time.Second
 	watchdogDownAfter    = 15 * time.Second
+	cameraPollPeriod     = 30 * time.Second
+	cameraPollTimeout    = 5 * time.Second
 	referenceSettleDelay = 4 * time.Second
 )
 
@@ -32,6 +34,7 @@ type Config struct {
 	Channels                                   []int
 	PTZ                                        engine.PTZ
 	Notifier                                   *notify.Notifier
+	Cameras                                    func(ctx context.Context) ([]nvr.Camera, error)
 }
 
 // ReferenceState resume las referencias visuales disponibles por preset.
@@ -45,6 +48,7 @@ type State struct {
 	State    engine.State `json:"state"`
 	Pose     engine.Pose  `json:"pose"`
 	Detector string       `json:"detector"`
+	Camera   string       `json:"camera"`
 }
 
 // Frame es la parte pública de una detección.
@@ -79,6 +83,7 @@ type App struct {
 	history    *events.History
 	dispatcher *events.Dispatcher
 	ptz        engine.PTZ
+	cameraList func(context.Context) ([]nvr.Camera, error)
 	cameras    map[int]*cameraRuntime
 
 	mu       sync.RWMutex
@@ -121,7 +126,8 @@ func New(cfg Config) (*App, error) {
 	a := &App{
 		client: vision.NewClient(cfg.DetectURL), store: store, refs: refs, verifier: verifier,
 		bus: bus, history: history, dispatcher: dispatcher, ptz: cfg.PTZ,
-		cameras: make(map[int]*cameraRuntime), states: make(map[int]State),
+		cameraList: cfg.Cameras,
+		cameras:    make(map[int]*cameraRuntime), states: make(map[int]State),
 		subs: make(map[uint64]subscriber), lastSent: make(map[int]time.Time),
 	}
 	dispatcher.OnEvent = func(event vision.Event) {
@@ -137,14 +143,18 @@ func New(cfg Config) (*App, error) {
 		runtime := &cameraRuntime{frames: make(chan vision.Frame, 2), statuses: make(chan vision.Status, 4)}
 		runtime.engine = &engine.Engine{
 			Cam: ch, PTZ: cfg.PTZ, Verifier: verifierAdapter{verifier},
-			Cfg:  func() vision.CameraConfig { return engineConfig(a.Config(ch)) },
+			Cfg:  func() vision.CameraConfig { return a.engineConfig(ch) },
 			Emit: a.bus.Publish,
 		}
 		runtime.engine.OnState = func(state engine.State, cameraPose engine.Pose) {
 			a.setEngineState(ch, state, cameraPose)
 		}
 		a.cameras[ch] = runtime
-		a.states[ch] = State{State: engine.AtPreset, Detector: "starting"}
+		cameraState := ""
+		if cfg.Cameras != nil {
+			cameraState = "unknown"
+		}
+		a.states[ch] = State{State: engine.AtPreset, Detector: "starting", Camera: cameraState}
 	}
 	return a, nil
 }
@@ -157,6 +167,17 @@ func engineConfig(cfg vision.CameraConfig) vision.CameraConfig {
 		cfg.Tracking.Enabled = false
 	}
 	return cfg
+}
+
+func (a *App) engineConfig(ch int) vision.CameraConfig {
+	cfg := a.Config(ch)
+	a.mu.RLock()
+	offline := a.states[ch].Camera == "offline"
+	a.mu.RUnlock()
+	if offline {
+		cfg.Enabled = false
+	}
+	return engineConfig(cfg)
 }
 
 // DefaultConfig devuelve los valores del contrato para una cámara nueva.
@@ -175,6 +196,9 @@ func (a *App) Run(ctx context.Context) {
 		return
 	}
 	defer a.running.Store(false)
+	if a.cameraList != nil {
+		a.updateEnabled()
+	}
 	var workers sync.WaitGroup
 	dispatchReady := make(chan struct{})
 	workers.Add(1)
@@ -199,6 +223,13 @@ func (a *App) Run(ctx context.Context) {
 		defer workers.Done()
 		a.watch(ctx)
 	}()
+	if a.cameraList != nil {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			a.watchCameras(ctx)
+		}()
+	}
 	defer workers.Wait()
 	for {
 		select {
@@ -225,6 +256,9 @@ func (a *App) routeFrame(frame vision.Frame) {
 	if runtime == nil {
 		return
 	}
+	if a.cameraState(frame.Cam) == "offline" {
+		return
+	}
 	runtime.lastFrame.Store(time.Now().UnixNano())
 	putLatest(runtime.frames, frame)
 	a.mu.Lock()
@@ -244,13 +278,21 @@ func (a *App) routeStatus(status vision.Status) {
 	if runtime == nil {
 		return
 	}
-	putLatest(runtime.statuses, status)
 	a.mu.Lock()
 	state := a.states[status.Cam]
 	state.Detector = status.State
 	a.states[status.Cam] = state
 	a.mu.Unlock()
+	if state.Camera != "offline" {
+		putLatest(runtime.statuses, status)
+	}
 	a.publish(status.Cam, Update{Type: "state", State: state})
+}
+
+func (a *App) cameraState(cam int) string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.states[cam].Camera
 }
 
 func putLatest[T any](ch chan T, value T) {
@@ -291,9 +333,16 @@ func (a *App) watch(ctx context.Context) {
 			connected := a.client.Connected()
 			for cam, runtime := range a.cameras {
 				cfg := a.Config(cam)
+				a.mu.RLock()
+				observed := a.states[cam]
+				a.mu.RUnlock()
+				suppressed := observed.Camera == "offline" || observed.Detector == "disabled"
 				last := time.Unix(0, runtime.lastFrame.Load())
 				stale := cfg.Enabled && (runtime.lastFrame.Load() == 0 && now.Sub(started) >= watchdogDownAfter || runtime.lastFrame.Load() != 0 && now.Sub(last) >= watchdogDownAfter)
 				failed := !connected && now.Sub(started) >= watchdogDownAfter || stale
+				if suppressed {
+					failed = false
+				}
 				if failed && !down[cam] {
 					down[cam] = true
 					a.bus.Publish(vision.Event{ID: fmt.Sprintf("%d-%d-down", cam, now.UnixNano()), Kind: vision.EventDetectorDown, Cam: cam, At: now, Message: "detector sin conexión o sin frames"})
@@ -304,7 +353,7 @@ func (a *App) watch(ctx context.Context) {
 				a.mu.Lock()
 				state := a.states[cam]
 				previousDetector := state.Detector
-				if !connected {
+				if !connected && state.Detector != "disabled" {
 					state.Detector = "down"
 				} else if state.Detector == "down" {
 					state.Detector = "starting"
@@ -317,6 +366,90 @@ func (a *App) watch(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (a *App) watchCameras(ctx context.Context) {
+	a.pollCameras(ctx)
+	ticker := time.NewTicker(cameraPollPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.pollCameras(ctx)
+		}
+	}
+}
+
+func (a *App) pollCameras(ctx context.Context) {
+	queryCtx, cancel := context.WithTimeout(ctx, cameraPollTimeout)
+	cameras, err := a.cameraList(queryCtx)
+	cancel()
+	if err != nil {
+		logx.Printf("vision: consultar cámaras del NVR: %v", err)
+		return
+	}
+	online := make(map[int]bool, len(cameras))
+	for _, camera := range cameras {
+		online[camera.Channel] = camera.Online
+	}
+	now := time.Now()
+	var rehome []int
+	for cam := range a.cameras {
+		next := "offline"
+		if online[cam] {
+			next = "online"
+		}
+		a.mu.Lock()
+		state := a.states[cam]
+		previous := state.Camera
+		if previous == next {
+			a.mu.Unlock()
+			continue
+		}
+		state.Camera = next
+		a.states[cam] = state
+		a.mu.Unlock()
+		a.publish(cam, Update{Type: "state", State: state})
+		if next == "offline" {
+			drain(a.cameras[cam].frames)
+			drain(a.cameras[cam].statuses)
+			a.bus.Publish(vision.Event{ID: fmt.Sprintf("%d-%d-offline", cam, now.UnixNano()), Kind: vision.EventCameraOffline, Cam: cam, At: now})
+		} else if previous == "offline" {
+			a.bus.Publish(vision.Event{ID: fmt.Sprintf("%d-%d-online", cam, now.UnixNano()), Kind: vision.EventCameraOnline, Cam: cam, At: now})
+			rehome = append(rehome, cam)
+		}
+	}
+	a.updateEnabled()
+	for _, cam := range rehome {
+		if err := a.cameras[cam].engine.Rehome(ctx); err != nil && ctx.Err() == nil {
+			logx.Printf("vision: rehome de cámara %d reconectada: %v", cam, err)
+		}
+	}
+}
+
+func drain[T any](ch chan T) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
+		}
+	}
+}
+
+func (a *App) updateEnabled() {
+	if a.cameraList == nil {
+		return
+	}
+	enabled := make([]int, 0, len(a.cameras))
+	for cam := range a.cameras {
+		if a.Config(cam).Enabled && a.cameraState(cam) != "offline" {
+			enabled = append(enabled, cam)
+		}
+	}
+	a.client.SetEnabled(enabled)
 }
 
 // Config devuelve la configuración guardada o los valores por defecto.
@@ -332,7 +465,11 @@ func (a *App) SetConfig(ch int, cfg vision.CameraConfig) error {
 	if a.cameras[ch] == nil {
 		return fmt.Errorf("canal de visión desconocido: %d", ch)
 	}
-	return a.store.Put(ch, cfg)
+	if err := a.store.Put(ch, cfg); err != nil {
+		return err
+	}
+	a.updateEnabled()
+	return nil
 }
 
 // References informa de las referencias usadas por la configuración.

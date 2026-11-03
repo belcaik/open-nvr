@@ -151,6 +151,7 @@ func serveWeb() error {
 			DetectURL: detectURL, ConfigPath: config.Str("VISION_CONFIG", "/data/vision/vision.json"),
 			DataDir: config.Str("VISION_DATA", "/data/vision"), Go2RTCBase: "http://" + apiListen,
 			Channels: channels, PTZ: cameraService, Notifier: notifier,
+			Cameras: cameraService.Cameras,
 		})
 		if err != nil {
 			return fmt.Errorf("visión: %w", err)

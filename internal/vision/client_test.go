@@ -3,6 +3,7 @@ package vision
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,6 +14,68 @@ import (
 
 	"github.com/coder/websocket"
 )
+
+func TestClientSetEnabledConnectChangeAndReconnect(t *testing.T) {
+	oldBase, oldMax := clientReconnectBase, clientReconnectMax
+	clientReconnectBase, clientReconnectMax = 5*time.Millisecond, 10*time.Millisecond
+	defer func() { clientReconnectBase, clientReconnectMax = oldBase, oldMax }()
+
+	messages := make(chan []int, 4)
+	var connections atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		n := connections.Add(1)
+		go func() {
+			defer conn.Close(websocket.StatusNormalClosure, "reconectar")
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			reads := 1
+			if n == 1 {
+				reads = 2
+			}
+			for range reads {
+				_, data, err := conn.Read(ctx)
+				if err != nil {
+					return
+				}
+				var message struct {
+					Type    string `json:"type"`
+					Enabled []int  `json:"enabled"`
+				}
+				if json.Unmarshal(data, &message) == nil && message.Type == "cameras" {
+					messages <- message.Enabled
+				}
+			}
+		}()
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := NewClientWithHTTPClient("ws://detector.local/detections", &http.Client{Transport: memoryWebSocketTransport{handler: handler}})
+	client.SetEnabled([]int{3, 1, 3})
+	frames, _ := client.Start(ctx)
+	wantMessage(t, messages, []int{1, 3})
+	client.SetEnabled([]int{2, 1})
+	wantMessage(t, messages, []int{1, 2})
+	wantMessage(t, messages, []int{1, 2})
+	cancel()
+	for range frames {
+	}
+}
+
+func wantMessage(t *testing.T, messages <-chan []int, want []int) {
+	t.Helper()
+	select {
+	case got := <-messages:
+		if fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Fatalf("enabled = %v, quiero %v", got, want)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout esperando enabled %v", want)
+	}
+}
 
 func receiveFrame(t *testing.T, frames <-chan Frame) Frame {
 	t.Helper()
