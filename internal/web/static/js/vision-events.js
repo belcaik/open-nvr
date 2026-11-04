@@ -29,8 +29,11 @@ function element(tag, className, text) {
   return node;
 }
 
+// El historial guarda la ruta relativa a su directorio ("snapshots/<día>/<id>.jpg");
+// la ruta HTTP ya incluye "snapshots".
 function snapshotURL(path) {
-  return `/vision/snapshots/${String(path).split("/").map(encodeURIComponent).join("/")}`;
+  const rel = String(path).replace(/^snapshots\//, "");
+  return `/vision/snapshots/${rel.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function localTime(value) {
