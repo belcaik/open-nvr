@@ -230,3 +230,21 @@ func TestVisionPagesRenderWithVision(t *testing.T) {
 		}
 	}
 }
+
+type fakeSnap struct{}
+
+func (fakeSnap) Snapshot(context.Context, int) ([]byte, error) { return []byte("\xff\xd8jpeg"), nil }
+
+// La página construye la URL quitando el prefijo "snapshots/" que guarda el historial.
+func TestVisionSnapshotServedFromRecordedPath(t *testing.T) {
+	e, v := visionTestEnv(t)
+	v.history.Snap = fakeSnap{}
+	ev, err := v.history.Record(context.Background(), vision.Event{ID: "1-1-1", Cam: 1, Kind: vision.EventZoneEnter, At: time.Now()})
+	if err != nil || ev.Snapshot == "" {
+		t.Fatalf("Record: %v, snapshot %q", err, ev.Snapshot)
+	}
+	rec := e.do(e.authed(t, http.MethodGet, "/vision/snapshots/"+strings.TrimPrefix(ev.Snapshot, "snapshots/"), nil))
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("snapshot %q: %d", ev.Snapshot, rec.Code)
+	}
+}

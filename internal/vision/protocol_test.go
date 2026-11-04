@@ -67,3 +67,13 @@ func TestDecodeRejectsInvalidInput(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeAcceptsDisabledStatus(t *testing.T) {
+	message, err := Decode([]byte(`{"type":"status","cam":3,"state":"disabled","fps":0,"infer_ms_p50":0,"dropped":0}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status, ok := message.(Status); !ok || status.State != "disabled" {
+		t.Fatalf("mensaje = %#v", message)
+	}
+}

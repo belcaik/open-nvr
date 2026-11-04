@@ -72,7 +72,7 @@ func Decode(data []byte) (any, error) {
 			return nil, fmt.Errorf("cámara inválida: debe ser mayor o igual a 1")
 		}
 		switch status.State {
-		case "starting", "ok", "reconnecting":
+		case "starting", "ok", "reconnecting", "disabled":
 		default:
 			return nil, fmt.Errorf("estado inválido: %q", status.State)
 		}
