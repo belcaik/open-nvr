@@ -80,7 +80,8 @@ func (d *Dispatcher) Run(ctx context.Context) {
 }
 
 // RunReady avisa cuando la suscripción ya está lista para no perder eventos
-// durante el arranque.
+// durante el arranque. Cada sink tiene su cola y una goroutine que llama a
+// Send en orden; si la cola está llena se descarta solo para ese sink.
 func (d *Dispatcher) RunReady(ctx context.Context, ready chan<- struct{}) {
 	if d.Bus == nil {
 		if ready != nil {
@@ -90,6 +91,35 @@ func (d *Dispatcher) RunReady(ctx context.Context, ready chan<- struct{}) {
 	}
 	events, unsubscribe := d.Bus.Subscribe(64)
 	defer unsubscribe()
+
+	ctx, cancel := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	queues := make([]chan vision.Event, len(d.Sinks))
+	lastDrop := make([]time.Time, len(d.Sinks))
+	for i, sink := range d.Sinks {
+		ch := make(chan vision.Event, 64)
+		queues[i] = ch
+		wg.Add(1)
+		go func(sink Sink, ch <-chan vision.Event) {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case ev, ok := <-ch:
+					if !ok {
+						return
+					}
+					d.send(ctx, sink, ev)
+				}
+			}
+		}(sink, ch)
+	}
+	defer func() {
+		cancel()
+		wg.Wait()
+	}()
+
 	if ready != nil {
 		close(ready)
 	}
@@ -113,8 +143,15 @@ func (d *Dispatcher) RunReady(ctx context.Context, ready chan<- struct{}) {
 			if d.OnEvent != nil {
 				d.OnEvent(ev)
 			}
-			for _, sink := range d.Sinks {
-				go d.send(ctx, sink, ev)
+			for i, ch := range queues {
+				select {
+				case ch <- ev:
+				default:
+					if time.Since(lastDrop[i]) >= time.Minute {
+						lastDrop[i] = time.Now()
+						logx.Printf("cola de eventos llena: se descarta para el sink %T", d.Sinks[i])
+					}
+				}
 			}
 		}
 	}

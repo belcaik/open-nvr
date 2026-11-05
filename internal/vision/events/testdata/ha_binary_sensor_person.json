@@ -1,0 +1,15 @@
+{
+  "availability_topic": "opennvr/status",
+  "device": {
+    "identifiers": ["opennvr_cam1"],
+    "name": "Entrada",
+    "via_device": "opennvr"
+  },
+  "device_class": "occupancy",
+  "name": "Persona",
+  "origin": {
+    "name": "open-nvr"
+  },
+  "state_topic": "opennvr/cam1/person",
+  "unique_id": "opennvr_cam1_person"
+}
