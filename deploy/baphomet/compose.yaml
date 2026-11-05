@@ -149,6 +149,33 @@ services:
       retries: 3
       start_period: 10s
 
+  # Broker MQTT para Home Assistant: opennvr-web publica estados, eventos y
+  # discovery en 127.0.0.1:1883 y Home Assistant (red del host) se suscribe.
+  # Escucha solo en loopback; usuarios y ACL en mosquitto/.
+  mosquitto:
+    container_name: opennvr-mosquitto
+    image: docker.io/library/eclipse-mosquitto:2.0.22
+    network_mode: host
+    user: "1883:1883"
+    secrets:
+      - mqtt_passwd
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/acl:/mosquitto/config/acl:ro
+      - mosquitto_data:/mosquitto/data
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 1883"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   # Servidor NTP para el NVR: sirve la hora de Baphomet en 192.168.0.8:123
   # sin dar al NVR salida a Internet.
   chrony:
@@ -217,11 +244,13 @@ services:
       WEB_PASSWORD_HASH_FILE: /run/secrets/web_password_hash
       WEB_SESSION_KEY_FILE: /run/secrets/web_session_key
       NTFY_TOKEN_FILE: /run/secrets/ntfy_token
+      MQTT_PASS_FILE: /run/secrets/mqtt_pass
       GO2RTC_CONFIG: /config/go2rtc.yaml
       VISION_DETECT_URL: ws://127.0.0.1:8556/detections
     secrets:
       - nvr_pass
       - ntfy_token
+      - mqtt_pass
       - web_password_hash
       - web_session_key
     volumes:
@@ -277,6 +306,10 @@ secrets:
     external: true
   web_session_key:
     external: true
+  mqtt_pass:
+    external: true
+  mqtt_passwd:
+    external: true
 
 volumes:
   nvr_watch_data:
@@ -286,6 +319,7 @@ volumes:
   dnsmasq_logs:
   ntfy_cache:
   ntfy_data:
+  mosquitto_data:
   go2rtc_config:
   # Nombre fijo: el README lo crea a mano con el ONNX antes de levantar.
   detect_models:

@@ -1,0 +1,10 @@
+# open-nvr publica estados y discovery, y escucha cuándo reinicia HA.
+user opennvr
+topic readwrite opennvr/#
+topic write homeassistant/+/+/+/config
+topic read homeassistant/status
+
+# Home Assistant lee todo y solo anuncia su propio estado.
+user homeassistant
+topic read #
+topic write homeassistant/status

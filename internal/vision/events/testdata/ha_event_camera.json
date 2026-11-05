@@ -1,0 +1,23 @@
+{
+  "availability_topic": "opennvr/status",
+  "device": {
+    "identifiers": ["opennvr_cam1"],
+    "name": "Entrada",
+    "via_device": "opennvr"
+  },
+  "event_types": [
+    "zone_enter",
+    "zone_leave",
+    "tracking_start",
+    "tracking_stop",
+    "camera_displaced",
+    "camera_offline",
+    "camera_online"
+  ],
+  "name": "Eventos",
+  "origin": {
+    "name": "open-nvr"
+  },
+  "state_topic": "opennvr/cam1/event",
+  "unique_id": "opennvr_cam1_events"
+}

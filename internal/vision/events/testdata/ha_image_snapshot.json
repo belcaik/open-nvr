@@ -1,0 +1,14 @@
+{
+  "availability_topic": "opennvr/status",
+  "device": {
+    "identifiers": ["opennvr_cam1"],
+    "name": "Entrada",
+    "via_device": "opennvr"
+  },
+  "name": "Captura",
+  "origin": {
+    "name": "open-nvr"
+  },
+  "unique_id": "opennvr_cam1_snapshot",
+  "url_topic": "opennvr/cam1/snapshot_url"
+}

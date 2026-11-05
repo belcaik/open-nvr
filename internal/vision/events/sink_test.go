@@ -1,13 +1,16 @@
 package events
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/notify"
 	"github.com/belcaik/open-nvr/internal/vision"
 )
@@ -127,5 +130,266 @@ func TestDispatcherSinkFailureDoesNotBlockHistoryOrOtherSinks(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Dispatcher.Run no terminó")
+	}
+}
+
+func startDispatcher(t *testing.T, d *Dispatcher) context.CancelFunc {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		d.RunReady(ctx, ready)
+		close(done)
+	}()
+	select {
+	case <-ready:
+	case <-time.After(2 * time.Second):
+		cancel()
+		t.Fatal("Dispatcher.RunReady no se suscribió")
+	}
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("Dispatcher.RunReady no terminó")
+		}
+	})
+	return cancel
+}
+
+func TestDispatcherDeliversOneThousandEventsInOrder(t *testing.T) {
+	var bus Bus
+	var mu sync.Mutex
+	var got []int
+	taken := make(chan struct{}, 1000)
+	dispatcher := &Dispatcher{
+		Bus: &bus,
+		OnEvent: func(vision.Event) {
+			taken <- struct{}{}
+		},
+		Sinks: []Sink{sinkFunc(func(_ context.Context, ev vision.Event) error {
+			n, err := strconv.Atoi(ev.ID)
+			if err != nil {
+				t.Errorf("id = %q: %v", ev.ID, err)
+				return nil
+			}
+			// Los envíos concurrentes terminarían fuera de orden: el más
+			// reciente duerme menos, así el test falla si no hay cola.
+			time.Sleep(time.Duration(1000-n) * time.Microsecond)
+			mu.Lock()
+			got = append(got, n)
+			mu.Unlock()
+			return nil
+		})},
+	}
+	startDispatcher(t, dispatcher)
+	const n = 1000
+	const chunk = 32
+	waitReceived := func(want int) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			mu.Lock()
+			count := len(got)
+			mu.Unlock()
+			if count == want {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("recibidos = %d, quiero %d", count, want)
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	for i := range n {
+		bus.Publish(vision.Event{ID: strconv.Itoa(i), Kind: vision.EventZoneEnter, Cam: 1})
+		select {
+		case <-taken:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("el dispatcher no tomó el evento %d", i)
+		}
+		if (i+1)%chunk == 0 {
+			waitReceived(i + 1)
+		}
+	}
+	waitReceived(n)
+	mu.Lock()
+	defer mu.Unlock()
+	for i, v := range got {
+		if v != i {
+			t.Fatalf("orden: posición %d = %d, quiero %d", i, v, i)
+		}
+	}
+}
+
+func TestDispatcherSlowSinkDoesNotBlockAnother(t *testing.T) {
+	var bus Bus
+	block := make(chan struct{})
+	fast := make(chan string, 8)
+	dispatcher := &Dispatcher{
+		Bus: &bus,
+		Sinks: []Sink{
+			sinkFunc(func(ctx context.Context, ev vision.Event) error {
+				if ev.ID == "lento" {
+					select {
+					case <-block:
+					case <-ctx.Done():
+					}
+				}
+				return nil
+			}),
+			sinkFunc(func(_ context.Context, ev vision.Event) error {
+				fast <- ev.ID
+				return nil
+			}),
+		},
+	}
+	startDispatcher(t, dispatcher)
+	bus.Publish(vision.Event{ID: "lento", Kind: vision.EventZoneEnter, Cam: 1})
+	bus.Publish(vision.Event{ID: "rápido", Kind: vision.EventZoneLeave, Cam: 1})
+	got := make([]string, 0, 2)
+	deadline := time.After(2 * time.Second)
+	for len(got) < 2 {
+		select {
+		case id := <-fast:
+			got = append(got, id)
+		case <-deadline:
+			t.Fatalf("el sink lento bloqueó al otro; recibidos %v", got)
+		}
+	}
+	close(block)
+	if got[0] != "lento" || got[1] != "rápido" {
+		t.Fatalf("el sink rápido recibió %v, quiero [lento rápido]", got)
+	}
+}
+
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestDispatcherDropsWhenSinkQueueIsFull(t *testing.T) {
+	var logs syncBuffer
+	old := logx.Out
+	logx.Out = &logs
+	t.Cleanup(func() { logx.Out = old })
+
+	var bus Bus
+	started := make(chan struct{})
+	block := make(chan struct{})
+	var mu sync.Mutex
+	var got []string
+	var onEvent int
+	dispatcher := &Dispatcher{
+		Bus: &bus,
+		OnEvent: func(vision.Event) {
+			mu.Lock()
+			onEvent++
+			mu.Unlock()
+		},
+		Sinks: []Sink{sinkFunc(func(ctx context.Context, ev vision.Event) error {
+			if ev.ID == "0" {
+				close(started)
+				select {
+				case <-block:
+				case <-ctx.Done():
+				}
+			}
+			mu.Lock()
+			got = append(got, ev.ID)
+			mu.Unlock()
+			return nil
+		})},
+	}
+	startDispatcher(t, dispatcher)
+	const queued = 64
+	bus.Publish(vision.Event{ID: "0", Kind: vision.EventTrackingStart, Cam: 2})
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("el sink no empezó a enviar")
+	}
+	for i := 1; i <= queued+1; i++ {
+		bus.Publish(vision.Event{ID: strconv.Itoa(i), Kind: vision.EventTrackingStart, Cam: 2})
+	}
+	deadlineEvents := time.Now().Add(2 * time.Second)
+	for {
+		mu.Lock()
+		n := onEvent
+		mu.Unlock()
+		if n == queued+2 {
+			break
+		}
+		if time.Now().After(deadlineEvents) {
+			t.Fatalf("OnEvent = %d, quiero %d (síncrono antes de encolar)", n, queued+2)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	close(block)
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		mu.Lock()
+		count := len(got)
+		mu.Unlock()
+		if count >= queued+1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("entregados = %d, quiero %d", count, queued+1)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != queued+1 {
+		t.Fatalf("entregados = %d, quiero %d (uno descartado)", len(got), queued+1)
+	}
+	if !strings.Contains(logs.String(), "cola de eventos llena") {
+		t.Fatalf("no se registró el descarte: %q", logs.String())
+	}
+}
+
+func TestDispatcherStopsSinkGoroutinesOnCancel(t *testing.T) {
+	var bus Bus
+	dispatcher := &Dispatcher{
+		Bus: &bus,
+		Sinks: []Sink{
+			sinkFunc(func(context.Context, vision.Event) error { return nil }),
+			sinkFunc(func(context.Context, vision.Event) error { return nil }),
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		dispatcher.RunReady(ctx, ready)
+		close(done)
+	}()
+	select {
+	case <-ready:
+	case <-time.After(2 * time.Second):
+		cancel()
+		t.Fatal("Dispatcher.RunReady no se suscribió")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("las goroutines del dispatcher no terminaron al cancelar")
 	}
 }

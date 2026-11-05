@@ -86,6 +86,8 @@ se hace por VPN.
 
 4. Crear los secretos rootful. `ntfy_token` debe existir aunque ntfy esté
    desactivado; en ese caso se crea vacío.
+   `mqtt_pass` y `mqtt_passwd` se crean en «MQTT y Home Assistant»; si no se
+   usa MQTT, al menos `printf '' | sudo podman secret create mqtt_pass -`.
 
    ```bash
    read -rsp 'Contraseña NVR: ' NVR_SECRET; echo
@@ -338,6 +340,58 @@ levantar el servicio:
 ```bash
 sudo podman volume create opennvr-detect-models && sudo podman run --rm -v opennvr-detect-models:/m -v ./yolo26s.onnx:/src.onnx:ro docker.io/library/busybox cp /src.onnx /m/yolo26s.onnx
 ```
+
+## MQTT y Home Assistant (opennvr-mosquitto)
+
+`opennvr-mosquitto` escucha solo en `127.0.0.1:1883`. `opennvr-web` publica en
+él la presencia de personas (por cámara y por zona), la conectividad de cada
+cámara, los eventos de visión y la URL firmada de la última captura, con MQTT
+Discovery: Home Assistant crea los dispositivos y entidades solo. Home Assistant
+usa la red del host y se conecta por loopback.
+
+1. Contraseñas y secretos. La de `opennvr` se genera al azar y no hace falta
+   recordarla; la de `homeassistant` se escribe una vez en Home Assistant.
+   `mqtt_pass` debe existir aunque no se use MQTT (vacío), porque `opennvr-web`
+   lo monta.
+
+   ```bash
+   P1="$(head -c 24 /dev/urandom | base64)"
+   read -rsp 'Contraseña MQTT para Home Assistant: ' P2; echo
+   printf 'opennvr:%s\nhomeassistant:%s\n' "$P1" "$P2" \
+     | sudo podman run --rm -i --network none --entrypoint sh docker.io/library/eclipse-mosquitto:2.0.22 \
+         -c 'umask 077; cat > /tmp/p && mosquitto_passwd -U /tmp/p >/dev/null && cat /tmp/p' \
+     | sudo podman secret create mqtt_passwd -
+   printf '%s' "$P1" | sudo podman secret create mqtt_pass -
+   unset P1 P2
+   ```
+
+   Para cambiarlas: `sudo podman secret rm mqtt_passwd mqtt_pass`, repetir el
+   paso y recrear `opennvr-mosquitto` y `opennvr-web` (ver el orden de borrado
+   en «Interfaz web»).
+
+2. En `.env`, `VISION_MQTT=true` (requiere la detección activa). Levantar:
+   `sudo podman-compose up -d mosquitto` y recrear `opennvr-web`.
+
+3. En Home Assistant: Ajustes → Dispositivos y servicios → Añadir integración →
+   MQTT, broker `127.0.0.1`, puerto `1883`, usuario `homeassistant` y la
+   contraseña del paso 1. Es el único paso manual: las cámaras aparecen como
+   dispositivos «Cámara N» bajo «open-nvr».
+
+4. Comprobar desde el propio broker (la contraseña se pide sin eco):
+
+   ```bash
+   read -rsp 'Contraseña MQTT de homeassistant: ' P; echo
+   sudo podman exec opennvr-mosquitto mosquitto_sub -h 127.0.0.1 -u homeassistant -P "$P" -t 'opennvr/#' -v -W 5
+   unset P
+   ```
+
+La ACL (`mosquitto/acl`) limita a `opennvr` a `opennvr/#`, a escribir configs
+de discovery y a leer `homeassistant/status`; `homeassistant` lee todo y solo
+escribe `homeassistant/status`. Mosquitto 2.0 avisa al arrancar de que el
+fichero de contraseñas y la ACL no son de su usuario: son avisos, no errores.
+
+El vídeo no pasa por MQTT. Para verlo en Home Assistant, añadir la cámara
+desde go2rtc (`rtsp://127.0.0.1:8554/cam1`, o `cam1_sub` para el substream), también por loopback.
 
 ## Paso separado: cambiar la puerta de enlace del NVR
 
