@@ -487,3 +487,82 @@ func TestMQTTSinkConcurrentSendResyncAndHAStatus(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestMQTTSinkZoneStaysOccupiedWhileAnyTrackInside(t *testing.T) {
+	pub := &fakePub{}
+	sink := testSink(pub, []vision.Zone{{ID: "Puerta", Name: "Puerta"}})
+	send := func(kind vision.EventKind, track int) {
+		t.Helper()
+		if err := sink.Send(context.Background(), vision.Event{Kind: kind, Cam: 1, ZoneID: "Puerta", TrackID: track}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(vision.EventZoneEnter, 1)
+	send(vision.EventZoneEnter, 2)
+	send(vision.EventZoneLeave, 1)
+	if got := mustLast(t, pub, "opennvr/cam1/zone/puerta").payload; got != "ON" {
+		t.Fatalf("zona con el track 2 dentro = %q; quiere ON", got)
+	}
+	if got := mustLast(t, pub, "opennvr/cam1/person").payload; got != "ON" {
+		t.Fatalf("persona con el track 2 dentro = %q; quiere ON", got)
+	}
+	send(vision.EventZoneLeave, 2)
+	if got := mustLast(t, pub, "opennvr/cam1/zone/puerta").payload; got != "OFF" {
+		t.Fatalf("zona vacía = %q; quiere OFF", got)
+	}
+	if got := mustLast(t, pub, "opennvr/cam1/person").payload; got != "OFF" {
+		t.Fatalf("persona sin tracks = %q; quiere OFF", got)
+	}
+}
+
+func TestMQTTSinkRemovingOccupiedZoneClearsPresence(t *testing.T) {
+	pub := &fakePub{}
+	zones := []vision.Zone{{ID: "Puerta", Name: "Puerta"}}
+	sink := testSink(pub, nil)
+	sink.Zones = func(int) []vision.Zone { return zones }
+	sink.Resync()
+	if err := sink.Send(context.Background(), vision.Event{Kind: vision.EventZoneEnter, Cam: 1, ZoneID: "Puerta", TrackID: 1}); err != nil {
+		t.Fatal(err)
+	}
+	zones = nil
+	sink.Resync()
+	if got := mustLast(t, pub, "opennvr/cam1/zone/puerta").payload; got != "" {
+		t.Fatalf("estado de zona borrada = %q; quiere vacío", got)
+	}
+	if got := mustLast(t, pub, "opennvr/cam1/person").payload; got != "OFF" {
+		t.Fatalf("persona tras borrar la zona ocupada = %q; quiere OFF", got)
+	}
+}
+
+func TestMQTTSinkRetriesFailedZoneDeletion(t *testing.T) {
+	pub := &fakePub{}
+	zones := []vision.Zone{{ID: "Puerta", Name: "Puerta"}}
+	sink := testSink(pub, nil)
+	sink.Zones = func(int) []vision.Zone { return zones }
+	sink.Resync()
+	zones = nil
+	cfgTopic := "homeassistant/binary_sensor/opennvr_cam1/zone_puerta/config"
+	pub.fail, pub.failTopic = errors.New("cola llena"), cfgTopic
+	sink.Resync()
+	pub.fail, pub.failTopic = nil, ""
+	pub.reset()
+	sink.Resync()
+	if cfg := mustLast(t, pub, cfgTopic); cfg.payload != "" || !cfg.retain {
+		t.Fatalf("reintento del borrado = %+v", cfg)
+	}
+}
+
+func TestMQTTSinkPrefixDoesNotChangeEntityIdentity(t *testing.T) {
+	pub := &fakePub{}
+	sink := testSink(pub, nil)
+	sink.Prefix = "casa"
+	sink.Resync()
+	cfg := mustLast(t, pub, "homeassistant/binary_sensor/opennvr_cam1/person/config")
+	var got map[string]any
+	if err := json.Unmarshal([]byte(cfg.payload), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["unique_id"] != "opennvr_cam1_person" || got["state_topic"] != "casa/cam1/person" || got["availability_topic"] != "casa/status" {
+		t.Fatalf("discovery con Prefix = %v", got)
+	}
+}

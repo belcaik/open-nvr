@@ -39,8 +39,12 @@ type MQTTSink struct {
 	cams map[int]*camState
 }
 
+// haID fija la identidad de dispositivos y entidades en Home Assistant: no
+// depende de Prefix para que cambiar los topics no duplique entidades.
+const haID = "opennvr"
+
 type camState struct {
-	occupied       map[string]struct{}
+	occupied       map[string]map[int]struct{} // zona → tracks dentro
 	tracking       bool
 	connected      *bool
 	snapshotURL    string
@@ -93,7 +97,7 @@ func (s *MQTTSink) statusTopic() string {
 }
 
 func (s *MQTTSink) camNode(cam int) string {
-	return fmt.Sprintf("%s_cam%d", s.prefix(), cam)
+	return fmt.Sprintf("%s_cam%d", haID, cam)
 }
 
 func (s *MQTTSink) camTopic(cam int, rest string) string {
@@ -110,7 +114,7 @@ func (s *MQTTSink) origin() map[string]any {
 
 func (s *MQTTSink) hubDevice() map[string]any {
 	return map[string]any{
-		"identifiers":  []string{s.prefix()},
+		"identifiers":  []string{haID},
 		"manufacturer": "open-nvr",
 		"name":         "open-nvr",
 	}
@@ -120,7 +124,7 @@ func (s *MQTTSink) camDevice(info CameraInfo) map[string]any {
 	return map[string]any{
 		"identifiers": []string{s.camNode(info.Cam)},
 		"name":        cameraName(info),
-		"via_device":  s.prefix(),
+		"via_device":  haID,
 	}
 }
 
@@ -138,7 +142,7 @@ func (s *MQTTSink) state(cam int) *camState {
 	st := s.cams[cam]
 	if st == nil {
 		st = &camState{
-			occupied:       map[string]struct{}{},
+			occupied:       map[string]map[int]struct{}{},
 			zids:           map[string]string{},
 			usedZids:       map[string]string{},
 			publishedZones: map[string]string{},
@@ -160,16 +164,24 @@ func (s *MQTTSink) Send(_ context.Context, ev vision.Event) error {
 	s.ensureZids(ev.Cam, st)
 	switch ev.Kind {
 	case vision.EventZoneEnter:
-		st.occupied[ev.ZoneID] = struct{}{}
+		// Occupancy emite entradas y salidas por track: la zona sigue
+		// ocupada mientras quede alguno dentro.
+		if st.occupied[ev.ZoneID] == nil {
+			st.occupied[ev.ZoneID] = map[int]struct{}{}
+		}
+		st.occupied[ev.ZoneID][ev.TrackID] = struct{}{}
 	case vision.EventZoneLeave:
-		delete(st.occupied, ev.ZoneID)
+		delete(st.occupied[ev.ZoneID], ev.TrackID)
+		if len(st.occupied[ev.ZoneID]) == 0 {
+			delete(st.occupied, ev.ZoneID)
+		}
 	case vision.EventTrackingStart:
 		st.tracking = true
 	case vision.EventTrackingStop:
 		st.tracking = false
 	case vision.EventCameraOffline:
 		st.connected = boolPtr(false)
-		st.occupied = map[string]struct{}{}
+		st.occupied = map[string]map[int]struct{}{}
 		st.tracking = false
 	case vision.EventCameraOnline:
 		st.connected = boolPtr(true)
@@ -199,14 +211,14 @@ func (s *MQTTSink) HAStatus(payload []byte) {
 
 func (s *MQTTSink) resyncLocked() {
 	_ = s.publish(s.statusTopic(), []byte("online"), true)
-	_ = s.publishDiscovery(s.configTopic("event", s.prefix(), "events"), map[string]any{
+	_ = s.publishDiscovery(s.configTopic("event", haID, "events"), map[string]any{
 		"availability_topic": s.statusTopic(),
 		"device":             s.hubDevice(),
 		"event_types":        []string{string(vision.EventDetectorDown)},
 		"name":               "Eventos",
 		"origin":             s.origin(),
 		"state_topic":        s.prefix() + "/event",
-		"unique_id":          s.prefix() + "_events",
+		"unique_id":          haID + "_events",
 	})
 	for _, info := range s.allCameras() {
 		st := s.state(info.Cam)
@@ -227,7 +239,7 @@ func (s *MQTTSink) publishCameraDiscovery(info CameraInfo, st *camState) {
 		"name":               "Persona",
 		"origin":             s.origin(),
 		"state_topic":        s.camTopic(cam, "person"),
-		"unique_id":          fmt.Sprintf("%s_cam%d_person", s.prefix(), cam),
+		"unique_id":          fmt.Sprintf("%s_cam%d_person", haID, cam),
 	})
 	_ = s.publishDiscovery(s.configTopic("binary_sensor", node, "connected"), map[string]any{
 		"availability_topic": s.statusTopic(),
@@ -237,14 +249,14 @@ func (s *MQTTSink) publishCameraDiscovery(info CameraInfo, st *camState) {
 		"name":               "Conectada",
 		"origin":             s.origin(),
 		"state_topic":        s.camTopic(cam, "connected"),
-		"unique_id":          fmt.Sprintf("%s_cam%d_connected", s.prefix(), cam),
+		"unique_id":          fmt.Sprintf("%s_cam%d_connected", haID, cam),
 	})
 	_ = s.publishDiscovery(s.configTopic("image", node, "snapshot"), map[string]any{
 		"availability_topic": s.statusTopic(),
 		"device":             device,
 		"name":               "Captura",
 		"origin":             s.origin(),
-		"unique_id":          fmt.Sprintf("%s_cam%d_snapshot", s.prefix(), cam),
+		"unique_id":          fmt.Sprintf("%s_cam%d_snapshot", haID, cam),
 		"url_topic":          s.camTopic(cam, "snapshot_url"),
 	})
 	_ = s.publishDiscovery(s.configTopic("event", node, "events"), map[string]any{
@@ -254,7 +266,7 @@ func (s *MQTTSink) publishCameraDiscovery(info CameraInfo, st *camState) {
 		"name":               "Eventos",
 		"origin":             s.origin(),
 		"state_topic":        s.camTopic(cam, "event"),
-		"unique_id":          fmt.Sprintf("%s_cam%d_events", s.prefix(), cam),
+		"unique_id":          fmt.Sprintf("%s_cam%d_events", haID, cam),
 	})
 
 	current := map[string]vision.Zone{}
@@ -269,10 +281,15 @@ func (s *MQTTSink) publishCameraDiscovery(info CameraInfo, st *camState) {
 		if _, ok := current[orig]; ok {
 			continue
 		}
-		_ = s.publish(s.configTopic("binary_sensor", node, "zone_"+zid), nil, true)
-		_ = s.publish(s.camTopic(cam, "zone/"+zid), nil, true)
-		delete(st.publishedZones, orig)
+		// Una zona borrada deja de contar para la presencia de la cámara.
+		delete(st.occupied, orig)
 		delete(st.lastZones, zid)
+		cfgErr := s.publish(s.configTopic("binary_sensor", node, "zone_"+zid), nil, true)
+		stateErr := s.publish(s.camTopic(cam, "zone/"+zid), nil, true)
+		if cfgErr == nil && stateErr == nil {
+			// Si falla, el próximo Resync vuelve a intentar el borrado.
+			delete(st.publishedZones, orig)
+		}
 	}
 	for orig, z := range current {
 		zid := s.assignZid(st, orig)
@@ -287,7 +304,7 @@ func (s *MQTTSink) publishCameraDiscovery(info CameraInfo, st *camState) {
 			"name":               name,
 			"origin":             s.origin(),
 			"state_topic":        s.camTopic(cam, "zone/"+zid),
-			"unique_id":          fmt.Sprintf("%s_cam%d_zone_%s", s.prefix(), cam, zid),
+			"unique_id":          fmt.Sprintf("%s_cam%d_zone_%s", haID, cam, zid),
 		})
 		st.publishedZones[orig] = zid
 	}
