@@ -39,7 +39,14 @@ func (s *server) registerVisionRoutes(mux *http.ServeMux, authed func(http.Handl
 	mux.Handle("PUT /api/vision/{ch}/config", authed(s.putVisionConfig))
 	mux.Handle("POST /api/vision/{ch}/reference", authed(s.captureVisionReference))
 	mux.Handle("GET /api/vision/events", authed(s.visionHistory))
-	mux.Handle("GET /vision/snapshots/{path...}", authed(s.visionSnapshot))
+	authedSnapshot := authed(s.visionSnapshot)
+	mux.HandleFunc("GET /vision/snapshots/{path...}", func(w http.ResponseWriter, r *http.Request) {
+		if sig := r.URL.Query().Get("sig"); sig != "" && s.d.Vision.VerifySnapshot("snapshots/"+r.PathValue("path"), sig) {
+			s.visionSnapshot(w, r)
+			return
+		}
+		authedSnapshot.ServeHTTP(w, r)
+	})
 	mux.Handle("GET /vision/events", authed(s.visionEventsPage))
 }
 
