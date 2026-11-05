@@ -18,6 +18,7 @@ import (
 	"github.com/belcaik/open-nvr/internal/vision/engine"
 	"github.com/belcaik/open-nvr/internal/vision/events"
 	"github.com/belcaik/open-nvr/internal/vision/pose"
+	"github.com/belcaik/open-nvr/internal/vision/snapsign"
 )
 
 var (
@@ -82,6 +83,7 @@ type App struct {
 	bus        *events.Bus
 	history    *events.History
 	dispatcher *events.Dispatcher
+	signer     snapsign.Signer
 	ptz        engine.PTZ
 	cameraList func(context.Context) ([]nvr.Camera, error)
 	cameras    map[int]*cameraRuntime
@@ -123,9 +125,15 @@ func New(cfg Config) (*App, error) {
 	if cfg.Notifier != nil {
 		dispatcher.Sinks = append(dispatcher.Sinks, &events.NtfySink{Notifier: cfg.Notifier})
 	}
+	var signer snapsign.Signer
+	if key, err := snapsign.LoadOrCreateKey(filepath.Join(cfg.DataDir, "snapshot-url.key")); err != nil {
+		logx.Printf("vision: clave de firma de instantáneas: %v", err)
+	} else {
+		signer = snapsign.Signer{Key: key}
+	}
 	a := &App{
 		client: vision.NewClient(cfg.DetectURL), store: store, refs: refs, verifier: verifier,
-		bus: bus, history: history, dispatcher: dispatcher, ptz: cfg.PTZ,
+		bus: bus, history: history, dispatcher: dispatcher, signer: signer, ptz: cfg.PTZ,
 		cameraList: cfg.Cameras,
 		cameras:    make(map[int]*cameraRuntime), states: make(map[int]State),
 		subs: make(map[uint64]subscriber), lastSent: make(map[int]time.Time),
@@ -563,3 +571,9 @@ func (a *App) publish(cam int, update Update) {
 
 // History devuelve el historial compartido con el dispatcher.
 func (a *App) History() *events.History { return a.history }
+
+// SignSnapshot firma la ruta relativa de una instantánea ("" si no hay clave).
+func (a *App) SignSnapshot(rel string) string { return a.signer.Sign(rel) }
+
+// VerifySnapshot comprueba la firma de una ruta relativa de instantánea.
+func (a *App) VerifySnapshot(rel, sig string) bool { return a.signer.Verify(rel, sig) }

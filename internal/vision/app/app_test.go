@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -407,5 +408,47 @@ func TestDisabledCameraHidesZonesAndTracking(t *testing.T) {
 	cfg.Enabled = true
 	if got := engineConfig(cfg); !got.Tracking.Enabled || len(got.Zones) != 1 {
 		t.Fatalf("cámara activada perdió su configuración: %+v", got)
+	}
+}
+
+func TestAppSignAndVerifySnapshot(t *testing.T) {
+	dir := t.TempDir()
+	a, err := New(Config{
+		DetectURL:  "ws://detector.test/detections",
+		ConfigPath: filepath.Join(dir, "vision.json"),
+		DataDir:    dir,
+		Channels:   []int{1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel := "snapshots/2026-11-04/1-1-enter.jpg"
+	sig := a.SignSnapshot(rel)
+	if len(sig) != 64 || !a.VerifySnapshot(rel, sig) {
+		t.Fatalf("firma = %q, verify = %v", sig, a.VerifySnapshot(rel, sig))
+	}
+	if a.VerifySnapshot("snapshots/2026-11-04/otro.jpg", sig) {
+		t.Fatal("VerifySnapshot aceptó otra ruta")
+	}
+
+	// Si LoadOrCreateKey falla (p. ej. tamaño inválido), deja el firmador sin clave.
+	badDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(badDir, "snapshot-url.key"), []byte("corta"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	aBad, err := New(Config{
+		DetectURL:  "ws://detector.test/detections",
+		ConfigPath: filepath.Join(badDir, "vision.json"),
+		DataDir:    badDir,
+		Channels:   []int{1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := aBad.SignSnapshot(rel); got != "" {
+		t.Fatalf("SignSnapshot sin clave = %q, quiero cadena vacía", got)
+	}
+	if aBad.VerifySnapshot(rel, sig) {
+		t.Fatal("VerifySnapshot sin clave devolvió true")
 	}
 }
