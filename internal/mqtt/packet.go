@@ -213,6 +213,10 @@ func validateUTF8Name(value string) error {
 }
 
 func matchFilter(filter, topic string) bool {
+	// Los comodines del primer nivel no alcanzan los topics que empiezan por $.
+	if strings.HasPrefix(topic, "$") && (filter == "#" || strings.HasPrefix(filter, "+") || strings.HasPrefix(filter, "#")) {
+		return false
+	}
 	filterLevels := strings.Split(filter, "/")
 	topicLevels := strings.Split(topic, "/")
 	for i, level := range filterLevels {

@@ -93,6 +93,9 @@ func TestFilterMatching(t *testing.T) {
 		{"+/estado", "cocina/estado", true},
 		{"casa/+/estado", "casa/estado", false},
 		{"casa/+/estado", "casa/cocina/luz", false},
+		{"#", "$SYS/broker/uptime", false},
+		{"+/broker/uptime", "$SYS/broker/uptime", false},
+		{"$SYS/#", "$SYS/broker/uptime", true},
 	}
 	for _, tt := range tests {
 		if got := matchFilter(tt.filter, tt.topic); got != tt.want {

@@ -20,7 +20,7 @@ import (
 
 func TestRunSendsConnectWithCredentialsAndWill(t *testing.T) {
 	listener := listenBroker(t)
-	packets := make(chan packet, 2)
+	packets := make(chan packet, 3)
 	go func() {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -34,9 +34,12 @@ func TestRunSendsConnectWithCredentialsAndWill(t *testing.T) {
 		}
 		packets <- connect
 		_, _ = conn.Write([]byte{0x20, 0x02, 0x00, 0x00})
-		disconnect, err := readPacket(reader)
-		if err == nil {
-			packets <- disconnect
+		for range 2 {
+			next, err := readPacket(reader)
+			if err != nil {
+				return
+			}
+			packets <- next
 		}
 	}()
 
@@ -71,6 +74,11 @@ func TestRunSendsConnectWithCredentialsAndWill(t *testing.T) {
 		if values[i] != want[i] {
 			t.Fatalf("campo CONNECT %d = %q; quiere %q", i, values[i], want[i])
 		}
+	}
+	// Un DISCONNECT descarta el will en el broker: antes se publica a mano.
+	will := receive(t, packets)
+	if topic, payload, err := takeString(will.body); will.header != 0x31 || err != nil || topic != "opennvr/status" || string(payload) != "offline" {
+		t.Fatalf("will antes de DISCONNECT = %#x topic %q payload %q error %v", will.header, topic, payload, err)
 	}
 	if disconnect := receive(t, packets); disconnect.header != 0xe0 || len(disconnect.body) != 0 {
 		t.Fatalf("DISCONNECT = %#x %x", disconnect.header, disconnect.body)
@@ -492,4 +500,81 @@ func serverPublish(topic, payload string, retain bool) []byte {
 		header++
 	}
 	return encodePacket(header, body)
+}
+
+func TestPingIsSentWhilePublishingContinuously(t *testing.T) {
+	listener := listenBroker(t)
+	pinged := make(chan struct{}, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		reader := bufio.NewReader(conn)
+		_, _ = readPacket(reader)
+		_, _ = conn.Write([]byte{0x20, 0x02, 0x00, 0x00})
+		for {
+			next, err := readPacket(reader)
+			if err != nil {
+				return
+			}
+			if next.header == 0xc0 {
+				_, _ = conn.Write([]byte{0xd0, 0x00})
+				select {
+				case pinged <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := &Client{URL: brokerURL(listener), ClientID: "publicador", KeepAlive: 60 * time.Millisecond}
+	go func() { _ = client.Run(ctx) }()
+	go func() {
+		ticker := time.NewTicker(5 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_ = client.Publish("casa/estado", []byte("x"), false)
+			}
+		}
+	}()
+	// Sin PINGREQ, un broker que no envía nada dispararía el deadline de lectura.
+	receive(t, pinged)
+}
+
+func TestSubackFailureIsLogged(t *testing.T) {
+	oldOutput := logx.Out
+	var output bytes.Buffer
+	logx.Out = &output
+	t.Cleanup(func() { logx.Out = oldOutput })
+
+	client := &Client{}
+	if err := client.handleIncoming(packet{header: 0x90, body: []byte{0x00, 0x01, 0x80}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "suscripción rechazada") {
+		t.Fatalf("registro = %q; quiere aviso de suscripción rechazada", output.String())
+	}
+}
+
+func TestHandlersReceiveIndependentPayloads(t *testing.T) {
+	client := &Client{}
+	var second string
+	subscriptions := []subscription{
+		{filter: "casa/#", handler: func(message Message) { message.Payload[0] = 'X' }},
+		{filter: "casa/estado", handler: func(message Message) { second = string(message.Payload) }},
+	}
+	if err := client.handleIncoming(packet{header: 0x30, body: serverPublish("casa/estado", "online", false)[2:]}, subscriptions); err != nil {
+		t.Fatal(err)
+	}
+	if second != "online" {
+		t.Fatalf("segundo handler recibió %q; quiere online", second)
+	}
 }

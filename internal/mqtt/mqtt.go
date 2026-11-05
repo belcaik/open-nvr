@@ -196,7 +196,7 @@ func (c *Client) runConnection(ctx context.Context, conn net.Conn, keepAlive tim
 		return pending, false, err
 	}
 	if ctx.Err() != nil {
-		_ = writePacket(conn, []byte{0xe0, 0x00})
+		c.disconnect(conn)
 		return pending, true, nil
 	}
 
@@ -260,7 +260,7 @@ func (c *Client) runConnection(ctx context.Context, conn net.Conn, keepAlive tim
 		}
 		select {
 		case <-ctx.Done():
-			_ = writePacket(conn, []byte{0xe0, 0x00})
+			c.disconnect(conn)
 			return pending, true, nil
 		case result := <-reads:
 			if result.err != nil {
@@ -310,7 +310,6 @@ func (c *Client) runConnection(ctx context.Context, conn net.Conn, keepAlive tim
 				return pending, true, err
 			}
 			pending = nil
-			resetPing()
 		}
 	}
 }
@@ -324,7 +323,10 @@ func (c *Client) handleIncoming(value packet, subscriptions []subscription) erro
 		}
 		for _, subscription := range subscriptions {
 			if matchFilter(subscription.filter, message.Topic) {
-				subscription.handler(message)
+				// Cada handler recibe su copia: ninguno ve lo que otro modifique.
+				copied := message
+				copied.Payload = append([]byte(nil), message.Payload...)
+				subscription.handler(copied)
 			}
 		}
 		return nil
@@ -333,7 +335,12 @@ func (c *Client) handleIncoming(value packet, subscriptions []subscription) erro
 			return errors.New("mqtt: SUBACK inválido")
 		}
 		for _, code := range value.body[2:] {
-			if code != 0x00 && code != 0x80 {
+			switch code {
+			case 0x00:
+			case 0x80:
+				// Suele ser la ACL del broker: sin aviso no se recibiría nada.
+				logx.Printf("mqtt: suscripción rechazada por el broker (packet id %d)", binary.BigEndian.Uint16(value.body))
+			default:
 				return errors.New("mqtt: SUBACK solicita QoS no admitido")
 			}
 		}
@@ -346,6 +353,18 @@ func (c *Client) handleIncoming(value packet, subscriptions []subscription) erro
 	default:
 		return fmt.Errorf("mqtt: paquete inesperado tipo %d", value.header>>4)
 	}
+}
+
+// disconnect cierra la sesión de forma limpia. El broker descarta el will al
+// recibir DISCONNECT, así que antes se publica a mano para que los
+// suscriptores no sigan viendo el estado de conexión.
+func (c *Client) disconnect(conn net.Conn) {
+	if c.Will != nil {
+		if data, err := encodePublish(*c.Will); err == nil {
+			_ = writePacket(conn, data)
+		}
+	}
+	_ = writePacket(conn, []byte{0xe0, 0x00})
 }
 
 func parseConnack(value packet) error {
