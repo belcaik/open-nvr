@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -145,5 +146,32 @@ func TestURLBuildsSignedSnapshotPathWithEscapes(t *testing.T) {
 	wantEsc := "http://127.0.0.1:8095/vision/snapshots/2026-11-04/cam%201%3Fa%23b%25c.jpg?sig=cafebabe"
 	if gotEsc != wantEsc {
 		t.Fatalf("URL con escape = %q, quiero %q", gotEsc, wantEsc)
+	}
+}
+
+func TestLoadOrCreateKeyConcurrentCallersShareKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "vision", "snapshot-url.key")
+	const callers = 16
+	keys := make([][]byte, callers)
+	errs := make([]error, callers)
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			keys[i], errs[i] = LoadOrCreateKey(path)
+		}()
+	}
+	close(start)
+	wg.Wait()
+	for i := range callers {
+		if errs[i] != nil {
+			t.Fatalf("llamada %d: %v", i, errs[i])
+		}
+		if !bytes.Equal(keys[i], keys[0]) {
+			t.Fatalf("llamada %d obtuvo otra clave", i)
+		}
 	}
 }

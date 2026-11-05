@@ -61,8 +61,8 @@ func (s Signer) mac(rel string) []byte {
 }
 
 // LoadOrCreateKey carga una clave de 32 bytes desde path o, si no existe, crea
-// el directorio padre (0750) y genera un fichero nuevo (0600, O_EXCL) con
-// crypto/rand. Rechaza ficheros con tamaño distinto de 32 bytes o con permisos
+// el directorio padre (0750) y genera un fichero nuevo (0600) con crypto/rand
+// de forma atómica. Rechaza ficheros con tamaño distinto de 32 bytes o con permisos
 // más abiertos que 0600.
 func LoadOrCreateKey(path string) ([]byte, error) {
 	f, err := os.Open(path)
@@ -98,24 +98,33 @@ func LoadOrCreateKey(path string) ([]byte, error) {
 }
 
 func createKey(path string) ([]byte, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("crear directorio de clave de instantáneas: %w", err)
 	}
 	key := make([]byte, keySize)
 	if _, err := rand.Read(key); err != nil {
 		return nil, fmt.Errorf("generar clave de instantáneas: %w", err)
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	// La clave se escribe completa en un temporal y se enlaza con su nombre
+	// final: nadie lee un fichero a medias y, si otro proceso gana la
+	// carrera, se usa su clave.
+	tmp, err := os.CreateTemp(dir, ".snapshot-url-key-*")
 	if err != nil {
 		return nil, fmt.Errorf("crear fichero de clave de instantáneas: %w", err)
 	}
-	_, writeErr := f.Write(key)
-	closeErr := f.Close()
-	if writeErr != nil {
-		return nil, fmt.Errorf("escribir clave de instantáneas: %w", writeErr)
+	defer os.Remove(tmp.Name())
+	_, writeErr := tmp.Write(key)
+	syncErr := tmp.Sync()
+	closeErr := tmp.Close()
+	if err := errors.Join(writeErr, syncErr, closeErr); err != nil {
+		return nil, fmt.Errorf("escribir clave de instantáneas: %w", err)
 	}
-	if closeErr != nil {
-		return nil, fmt.Errorf("cerrar clave de instantáneas: %w", closeErr)
+	if err := os.Link(tmp.Name(), path); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return LoadOrCreateKey(path)
+		}
+		return nil, fmt.Errorf("guardar clave de instantáneas: %w", err)
 	}
 	return key, nil
 }
