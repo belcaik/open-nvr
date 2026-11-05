@@ -1,6 +1,6 @@
 # Diseño: eventos de visión por MQTT con Home Assistant Discovery
 
-Fecha: 2026-11-04. Estado: aprobado (secciones 1–2 en chat; 3–4 pendientes de revisión).
+Fecha: 2026-11-04. Estado: aprobado e implementado (ver «Cambios tras la revisión»).
 Continúa el subproyecto «MQTT para Home Assistant» de
 `2026-11-03-person-detection-design.md`.
 
@@ -243,3 +243,30 @@ a `visionapp.Config`; la app construye el `MQTTSink`, registra
   que hoy; path traversal con firma de otra ruta → 404.
 - Integración opcional local: `mosquitto` en contenedor rootless + `mosquitto_sub`.
 - `go test ./...` y `go vet ./...` en verde.
+
+## Cambios tras la revisión (2026-11-05)
+
+Revisión cruzada (grok → cliente, codex → sink, copilot → firma) y propia:
+
+- **Cierre limpio:** el broker descarta el will al recibir DISCONNECT, así que el
+  cliente publica el will (`opennvr/status offline`, retenido) justo antes.
+  Verificado con Mosquitto 2.0.22: cierre limpio y `kill -9` dejan `offline`.
+- **Keepalive:** PINGREQ cada `KeepAlive` aunque haya publicaciones; antes un flujo
+  continuo de PUBLISH sin tráfico entrante vencía el deadline de lectura.
+- SUBACK `0x80` (suscripción denegada, típicamente la ACL) se registra en el log.
+- `+`/`#` en el primer nivel no coinciden con topics `$…`. Cada handler recibe su
+  copia del payload.
+- `opennvr-web` usa `Queue: 1024` para que un corte largo no impida el `Resync`.
+- **Ocupación por (zona, track):** `Occupancy` emite entradas/salidas por track; la
+  zona sigue `ON` mientras quede alguno dentro.
+- Borrar una zona ocupada la quita de la presencia; los borrados de discovery que
+  fallan se reintentan en el siguiente `Resync`.
+- Identidades de HA (`unique_id`, `identifiers`, `via_device`, nodes) fijas con
+  `opennvr`, independientes de `Prefix`, que solo afecta a los topics.
+- La clave de firma se crea en un temporal y se enlaza con `link(2)`: nadie lee una
+  clave a medias y, si otro proceso gana la carrera, se usa la suya.
+- Healthcheck de Mosquitto: `nc -z 127.0.0.1 1883`. Mosquitto 2.0 avisa de que el
+  fichero de contraseñas y la ACL no son de su usuario; son avisos.
+- Aceptado sin cambio: una cola del dispatcher llena podría perder un `zone_leave`;
+  `MQTTSink.Send` no bloquea (solo encola en el cliente), así que no se llena en la
+  práctica.
