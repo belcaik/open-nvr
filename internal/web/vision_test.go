@@ -17,11 +17,13 @@ import (
 	visionapp "github.com/belcaik/open-nvr/internal/vision/app"
 	"github.com/belcaik/open-nvr/internal/vision/events"
 	"github.com/belcaik/open-nvr/internal/vision/pose"
+	"github.com/belcaik/open-nvr/internal/vision/snapsign"
 )
 
 type fakeVision struct {
 	store   *vision.Store
 	history *events.History
+	signer  snapsign.Signer
 	manual  []int
 	updates chan visionapp.Update
 }
@@ -33,7 +35,12 @@ func newFakeVision(t *testing.T) *fakeVision {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &fakeVision{store: store, history: &events.History{Dir: filepath.Join(dir, "events")}, updates: make(chan visionapp.Update, 8)}
+	return &fakeVision{
+		store:   store,
+		history: &events.History{Dir: filepath.Join(dir, "events")},
+		signer:  snapsign.Signer{Key: bytes.Repeat([]byte{0x42}, 32)},
+		updates: make(chan visionapp.Update, 8),
+	}
 }
 
 func (f *fakeVision) Config(ch int) vision.CameraConfig {
@@ -55,6 +62,9 @@ func (f *fakeVision) Subscribe(int) (<-chan visionapp.Update, func()) {
 	return f.updates, func() {}
 }
 func (f *fakeVision) History() *events.History { return f.history }
+func (f *fakeVision) VerifySnapshot(rel, sig string) bool {
+	return f.signer.Verify(rel, sig)
+}
 
 func TestVisionConfigRoundTripReturnAfterSeconds(t *testing.T) {
 	e, _ := visionTestEnv(t)
@@ -246,5 +256,60 @@ func TestVisionSnapshotServedFromRecordedPath(t *testing.T) {
 	rec := e.do(e.authed(t, http.MethodGet, "/vision/snapshots/"+strings.TrimPrefix(ev.Snapshot, "snapshots/"), nil))
 	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/jpeg" {
 		t.Fatalf("snapshot %q: %d", ev.Snapshot, rec.Code)
+	}
+}
+
+func TestVisionSnapshotSignedAndUnauthenticatedCases(t *testing.T) {
+	e, v := visionTestEnv(t)
+	v.history.Snap = fakeSnap{}
+	base := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	ev1, err := v.history.Record(context.Background(), vision.Event{ID: "1-1-a", Cam: 1, Kind: vision.EventZoneEnter, At: base})
+	if err != nil || ev1.Snapshot == "" {
+		t.Fatalf("Record ev1: %v, snapshot %q", err, ev1.Snapshot)
+	}
+	ev2, err := v.history.Record(context.Background(), vision.Event{ID: "1-1-b", Cam: 1, Kind: vision.EventZoneEnter, At: base})
+	if err != nil || ev2.Snapshot == "" {
+		t.Fatalf("Record ev2: %v, snapshot %q", err, ev2.Snapshot)
+	}
+	urlPath1 := "/vision/snapshots/" + strings.TrimPrefix(ev1.Snapshot, "snapshots/")
+	sig1 := v.signer.Sign(ev1.Snapshot)
+	sig2 := v.signer.Sign(ev2.Snapshot)
+
+	// Firma válida sin sesión → 200 image/jpeg y Cache-Control.
+	rec := e.do(httptest.NewRequest(http.MethodGet, urlPath1+"?sig="+sig1, nil))
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/jpeg" || rec.Header().Get("Cache-Control") != "private, max-age=86400" {
+		t.Fatalf("firma válida sin sesión: status=%d ct=%q cc=%q", rec.Code, rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
+	}
+
+	// Firma ausente o inválida sin sesión → mismo comportamiento que hoy (303 a /login, o 401 con HX-Request).
+	for _, target := range []string{urlPath1, urlPath1 + "?sig=invalida", urlPath1 + "?sig=" + sig2} {
+		rec := e.do(httptest.NewRequest(http.MethodGet, target, nil))
+		if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/login" {
+			t.Fatalf("%s sin sesión: status=%d location=%q", target, rec.Code, rec.Header().Get("Location"))
+		}
+		hxReq := httptest.NewRequest(http.MethodGet, target, nil)
+		hxReq.Header.Set("HX-Request", "true")
+		hxRec := e.do(hxReq)
+		if hxRec.Code != http.StatusUnauthorized || hxRec.Header().Get("HX-Redirect") != "/login" {
+			t.Fatalf("%s HX sin sesión: status=%d hx-redirect=%q", target, hxRec.Code, hxRec.Header().Get("HX-Redirect"))
+		}
+	}
+
+	// Traversal con firma → 404.
+	travSig := v.signer.Sign("snapshots/../secret")
+	for _, target := range []string{
+		"/vision/snapshots/%2e%2e/secret?sig=" + travSig,
+		"/vision/snapshots/2026-11-04%5c1-1-a.jpg?sig=" + v.signer.Sign(`snapshots/2026-11-04\1-1-a.jpg`),
+	} {
+		rec := e.do(httptest.NewRequest(http.MethodGet, target, nil))
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("traversal %s: status=%d, quiero 404", target, rec.Code)
+		}
+	}
+
+	// Con sesión sigue funcionando sin firma y responde Cache-Control.
+	authedRec := e.do(e.authed(t, http.MethodGet, urlPath1, nil))
+	if authedRec.Code != http.StatusOK || authedRec.Header().Get("Content-Type") != "image/jpeg" || authedRec.Header().Get("Cache-Control") != "private, max-age=86400" {
+		t.Fatalf("con sesión: status=%d ct=%q cc=%q", authedRec.Code, authedRec.Header().Get("Content-Type"), authedRec.Header().Get("Cache-Control"))
 	}
 }

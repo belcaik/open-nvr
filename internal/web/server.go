@@ -29,6 +29,7 @@ type VisionService interface {
 	Manual(ch int)
 	Subscribe(ch int) (<-chan visionapp.Update, func())
 	History() *events.History
+	VerifySnapshot(rel, sig string) bool
 }
 
 // CameraService es lo que la web necesita del dominio de cámaras
