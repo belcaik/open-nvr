@@ -11,10 +11,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/belcaik/open-nvr/internal/mqtt"
 	"github.com/belcaik/open-nvr/internal/nvr"
 	"github.com/belcaik/open-nvr/internal/vision"
 	"github.com/belcaik/open-nvr/internal/vision/engine"
@@ -450,5 +452,48 @@ func TestAppSignAndVerifySnapshot(t *testing.T) {
 	}
 	if aBad.VerifySnapshot(rel, sig) {
 		t.Fatal("VerifySnapshot sin clave devolvió true")
+	}
+}
+
+func TestAppWiresMQTTSink(t *testing.T) {
+	dir := t.TempDir()
+	client := &mqtt.Client{Queue: 1}
+	a, err := New(Config{DetectURL: "ws://detector.test/detections", ConfigPath: filepath.Join(dir, "vision.json"), DataDir: dir,
+		Channels: []int{2, 1}, MQTT: client, SnapshotBase: "http://192.168.0.8:8095",
+		Cameras: func(context.Context) ([]nvr.Camera, error) {
+			return []nvr.Camera{{Channel: 1, Online: true}, {Channel: 2, Online: false}}, nil
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.mqttSink == nil || client.OnConnect == nil {
+		t.Fatal("el sink MQTT no quedó cableado")
+	}
+	if len(a.dispatcher.Sinks) != 1 || a.dispatcher.Sinks[0] != a.mqttSink {
+		t.Fatalf("sinks del dispatcher = %#v", a.dispatcher.Sinks)
+	}
+
+	a.pollCameras(context.Background())
+	infos := a.mqttCameras()
+	if len(infos) != 2 || infos[0].Cam != 1 || infos[1].Cam != 2 {
+		t.Fatalf("cámaras MQTT = %+v", infos)
+	}
+	if infos[0].Online == nil || !*infos[0].Online || infos[1].Online == nil || *infos[1].Online {
+		t.Fatalf("estado online de las cámaras = %+v", infos)
+	}
+
+	rel := "snapshots/2026-11-04/1-1-enter.jpg"
+	url := a.snapshotURL("http://192.168.0.8:8095", rel)
+	prefix := "http://192.168.0.8:8095/vision/snapshots/2026-11-04/1-1-enter.jpg?sig="
+	if !strings.HasPrefix(url, prefix) || !a.VerifySnapshot(rel, strings.TrimPrefix(url, prefix)) {
+		t.Fatalf("URL firmada = %q", url)
+	}
+
+	// SetConfig republica el discovery: con la cola de 1 queda llena.
+	if err := a.SetConfig(1, DefaultConfig()); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Publish("opennvr/prueba", nil, false); !errors.Is(err, mqtt.ErrQueueFull) {
+		t.Fatalf("Publish tras SetConfig = %v; quiere ErrQueueFull porque Resync publicó", err)
 	}
 }

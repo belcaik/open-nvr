@@ -22,6 +22,7 @@ import (
 	"github.com/belcaik/open-nvr/internal/config"
 	"github.com/belcaik/open-nvr/internal/logx"
 	"github.com/belcaik/open-nvr/internal/media"
+	"github.com/belcaik/open-nvr/internal/mqtt"
 	"github.com/belcaik/open-nvr/internal/notify"
 	"github.com/belcaik/open-nvr/internal/nvr"
 	"github.com/belcaik/open-nvr/internal/p6s/history"
@@ -147,11 +148,16 @@ func serveWeb() error {
 				Prefix: "NVR visión: ", Throttle: notify.NewThrottle(&notify.ThrottleState{}, 60, 100),
 			}
 		}
+		mqttClient, err := visionMQTTClient()
+		if err != nil {
+			return fmt.Errorf("visión: %w", err)
+		}
 		visionApp, err := visionapp.New(visionapp.Config{
 			DetectURL: detectURL, ConfigPath: config.Str("VISION_CONFIG", "/data/vision/vision.json"),
 			DataDir: config.Str("VISION_DATA", "/data/vision"), Go2RTCBase: "http://" + apiListen,
 			Channels: channels, PTZ: cameraService, Notifier: notifier,
 			Cameras: cameraService.Cameras,
+			MQTT:    mqttClient, SnapshotBase: config.Str("MQTT_SNAPSHOT_BASE", "http://"+listen),
 		})
 		if err != nil {
 			return fmt.Errorf("visión: %w", err)
@@ -208,6 +214,23 @@ func serveWeb() error {
 		<-visionDone
 	}
 	return nil
+}
+
+// visionMQTTClient crea el cliente MQTT de visión si VISION_MQTT está activo.
+// Al cerrar publica "offline" en opennvr/status, igual que el will.
+func visionMQTTClient() (*mqtt.Client, error) {
+	if !config.Bool("VISION_MQTT", false) {
+		return nil, nil
+	}
+	pass := config.Secret("MQTT_PASS")
+	if pass == "" {
+		return nil, errors.New("VISION_MQTT requiere MQTT_PASS o MQTT_PASS_FILE")
+	}
+	return &mqtt.Client{
+		URL: config.Str("MQTT_URL", "mqtt://127.0.0.1:1883"), ClientID: config.Str("MQTT_CLIENT_ID", "opennvr-web"),
+		User: config.Str("MQTT_USER", "opennvr"), Pass: pass, Queue: 1024,
+		Will: &mqtt.Message{Topic: "opennvr/status", Payload: []byte("offline"), Retain: true},
+	}, nil
 }
 
 func go2rtcHealth(apiListen string) func(context.Context) error {

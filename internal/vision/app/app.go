@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/belcaik/open-nvr/internal/logx"
+	"github.com/belcaik/open-nvr/internal/mqtt"
 	"github.com/belcaik/open-nvr/internal/notify"
 	"github.com/belcaik/open-nvr/internal/nvr"
 	"github.com/belcaik/open-nvr/internal/vision"
@@ -36,6 +38,10 @@ type Config struct {
 	PTZ                                        engine.PTZ
 	Notifier                                   *notify.Notifier
 	Cameras                                    func(ctx context.Context) ([]nvr.Camera, error)
+	// MQTT, si no es nil, publica presencia, eventos y discovery de Home
+	// Assistant. SnapshotBase es la base de las URL firmadas de capturas.
+	MQTT         *mqtt.Client
+	SnapshotBase string
 }
 
 // ReferenceState resume las referencias visuales disponibles por preset.
@@ -84,6 +90,8 @@ type App struct {
 	history    *events.History
 	dispatcher *events.Dispatcher
 	signer     snapsign.Signer
+	mqtt       *mqtt.Client
+	mqttSink   *events.MQTTSink
 	ptz        engine.PTZ
 	cameraList func(context.Context) ([]nvr.Camera, error)
 	cameras    map[int]*cameraRuntime
@@ -137,6 +145,17 @@ func New(cfg Config) (*App, error) {
 		cameraList: cfg.Cameras,
 		cameras:    make(map[int]*cameraRuntime), states: make(map[int]State),
 		subs: make(map[uint64]subscriber), lastSent: make(map[int]time.Time),
+	}
+	if cfg.MQTT != nil {
+		a.mqtt = cfg.MQTT
+		a.mqttSink = &events.MQTTSink{
+			Pub: cfg.MQTT, Cameras: a.mqttCameras,
+			Zones:       func(cam int) []vision.Zone { return a.Config(cam).Zones },
+			SnapshotURL: func(rel string) string { return a.snapshotURL(cfg.SnapshotBase, rel) },
+		}
+		dispatcher.Sinks = append(dispatcher.Sinks, a.mqttSink)
+		cfg.MQTT.OnConnect = a.mqttSink.Resync
+		cfg.MQTT.Subscribe("homeassistant/status", func(m mqtt.Message) { a.mqttSink.HAStatus(m.Payload) })
 	}
 	dispatcher.OnEvent = func(event vision.Event) {
 		a.publish(event.Cam, Update{Type: "vision", Event: event})
@@ -215,6 +234,15 @@ func (a *App) Run(ctx context.Context) {
 		a.dispatcher.RunReady(ctx, dispatchReady)
 	}()
 	<-dispatchReady
+	if a.mqtt != nil {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			if err := a.mqtt.Run(ctx); err != nil {
+				logx.Printf("vision: MQTT desactivado: %v", err)
+			}
+		}()
+	}
 	for _, runtime := range a.cameras {
 		runtime := runtime
 		workers.Add(1)
@@ -477,6 +505,10 @@ func (a *App) SetConfig(ch int, cfg vision.CameraConfig) error {
 		return err
 	}
 	a.updateEnabled()
+	if a.mqttSink != nil {
+		// Zonas nuevas o borradas cambian las entidades de Home Assistant.
+		a.mqttSink.Resync()
+	}
 	return nil
 }
 
@@ -577,3 +609,33 @@ func (a *App) SignSnapshot(rel string) string { return a.signer.Sign(rel) }
 
 // VerifySnapshot comprueba la firma de una ruta relativa de instantánea.
 func (a *App) VerifySnapshot(rel, sig string) bool { return a.signer.Verify(rel, sig) }
+
+// mqttCameras describe las cámaras de visión para el discovery de MQTT.
+func (a *App) mqttCameras() []events.CameraInfo {
+	cams := make([]int, 0, len(a.cameras))
+	for cam := range a.cameras {
+		cams = append(cams, cam)
+	}
+	slices.Sort(cams)
+	infos := make([]events.CameraInfo, 0, len(cams))
+	for _, cam := range cams {
+		info := events.CameraInfo{Cam: cam}
+		switch a.cameraState(cam) {
+		case "online":
+			info.Online = new(true)
+		case "offline":
+			info.Online = new(false)
+		}
+		infos = append(infos, info)
+	}
+	return infos
+}
+
+// snapshotURL devuelve la URL firmada de una captura, o "" sin clave.
+func (a *App) snapshotURL(base, rel string) string {
+	sig := a.signer.Sign(rel)
+	if sig == "" || base == "" {
+		return ""
+	}
+	return snapsign.URL(base, rel, sig)
+}
